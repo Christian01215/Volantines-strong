@@ -1,0 +1,660 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Volantines Strong | Hecho para el cielo{% endblock %}
+
+{% block content %}
+<!-- Navegación principal -->
+<header class="nav-wrap">
+  <div class="container nav">
+    <a href="#inicio" class="brand" aria-label="Volantines Strong, inicio">
+      <span class="logo-dot">
+        <img
+          src="static/assets/LogoVolantineStrong.png"
+          alt="Logo Volantines Strong"
+          class="LogoVolantineStrong"
+        >
+      </span>
+      <span class="brand-name">
+        VOLANTINES <b>STRONG</b>
+        <small>TRADICIÓN · DISEÑO · COMPETICIÓN</small>
+      </span>
+    </a>
+
+    <nav class="nav-links" aria-label="Navegación principal">
+      <a href="#productos">Catálogo</a>
+      <a href="#reales">Productos reales</a>
+      <a href="#marca">Nosotros</a>
+      <a href="#contacto">Contacto</a>
+    </nav>
+
+    <div class="nav-actions">
+      <button id="open-cart-btn" class="cart-trigger" type="button" aria-label="Abrir carrito">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3 3h2l2.2 11.1a2 2 0 0 0 2 1.6h8.9a2 2 0 0 0 1.9-1.4L22 8H6M10 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm8 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
+        </svg>
+        <span>Carrito</span>
+        <b id="cart-badge">0</b>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+    <!-- Hero: fotografía real del producto, con efecto 3D -->
+    <section class="hero" id="inicio">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <div class="eyebrow">
+            <span class="eyebrow-mark"></span>
+            VOLANTINES DE COMPETICIÓN · HECHOS A MANO
+          </div>
+          <br>
+          <h1>
+            PASIÓN<br>
+            <span class="stroke">POR EL</span><br>
+            <span class="red-word">VOLANTÍN.</span>
+          </h1>
+          <p>
+            Diseño, oficio y carácter en cada volantín. Descubre la línea Strong:
+            volantines, carretes, hilos y accesorios preparados para llevar tu vuelo más alto.
+          </p>
+          <div class="hero-actions">
+            <a class="pill red" href="#productos">Explorar catálogo <span>↗</span></a>
+            <a class="pill" href="#reales">Conocer Strong</a>
+          </div>
+          <div class="hero-note">
+            <span class="hero-note-line"></span>
+            <span>DISEÑADO PARA VOLAR.<br><b>CONSTRUIDO PARA DESTACAR.</b></span>
+          </div>
+        </div>
+
+        <div class="showcase" id="stage">
+          <div class="hero-photo-frame" id="kite3d">
+            <div class="photo-index">STRONG / 01</div>
+            <img
+              src="static/assets/volantines-strong-reales.png"
+              alt="Volantines Strong de competición con diseños gráficos intensos"
+              class="hero-kite-photo"
+            >
+            <div class="photo-caption">
+              <span>COLECCIÓN STRONG</span>
+              <b>01 — VOLANTINES</b>
+            </div>
+          </div>
+          <div class="show-tag">
+            PRODUCTO REAL<br>
+            <b>IDENTIDAD STRONG</b><br>
+            MOVIMIENTO 3D
+          </div>
+          <div class="hero-orbit orbit-one"></div>
+          <div class="hero-orbit orbit-two"></div>
+        </div>
+      </div>
+
+      <div class="hero-bottom container">
+        <span>VOLANTINES · CARRETES · HILOS</span>
+        <span>HECHO EN CHILE <i>✳</i></span>
+      </div>
+    </section>
+
+    <!-- Referencias reales del taller -->
+    <section class="real-strip" id="reales">
+      <div class="container strip-heading">
+        <div>
+          <div class="eyebrow">MATERIALES Y DETALLES</div>
+          <h2>HECHOS PARA<br><span>RECONOCERSE.</span></h2>
+        </div>
+      </div>
+
+      <div class="container strip-grid">
+        <article class="source-card tilt">
+          <img src="static/assets/volantines-strong-reales.png" alt="Diseños reales de volantines Strong">
+          <div class="source-copy">
+            <div>
+              <span>01 / COLECCIÓN</span>
+              <strong>Volantines Strong</strong>
+            </div>
+            <b>DISEÑO + VUELO</b>
+          </div>
+        </article>
+
+        <article class="source-card tilt">
+          <img src="static/assets/carrete-strong-real.png" alt="Carrete circular de madera Strong con perforaciones">
+          <div class="source-copy">
+            <div>
+              <span>02 / TALLER</span>
+              <strong>Carrete de madera</strong>
+            </div>
+            <b>OFICIO ARTESANAL</b>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- Catálogo conectado a Supabase -->
+    <section class="block catalog-section" id="productos">
+      <div class="container">
+        <div class="section-head catalog-head">
+          <div>
+            <div class="eyebrow">CATÁLOGO ONLINE / STOCK EN TIEMPO REAL</div>
+            <h2>QUE NO TE FALTE<br><span>HILO NI CARRETE.</span></h2>
+          </div>
+          <p>
+            Explora los productos disponibles. El catálogo y el stock se
+            actualizan directamente desde nuestro sistema.
+          </p>
+        </div>
+
+        <div class="catalog-toolbar">
+          <label class="search-wrap">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="10.8" cy="10.8" r="6.8"></circle>
+              <path d="m16 16 5 5"></path>
+            </svg>
+            <input
+              type="search"
+              id="search-input"
+              placeholder="Buscar volantines, carretes, hilos..."
+              autocomplete="off"
+              aria-label="Buscar productos"
+            >
+          </label>
+
+          <div id="category-filters" class="category-filters" aria-label="Filtrar por categoría">
+            <button type="button" class="cat-btn is-active" data-cat="ALL">Todos</button>
+            <button type="button" class="cat-btn" data-cat="Competencia">Competencia</button>
+            <button type="button" class="cat-btn" data-cat="Recreativos">Recreativos</button>
+            <button type="button" class="cat-btn" data-cat="Hilo">Hilos</button>
+            <button type="button" class="cat-btn" data-cat="Accesorios">Accesorios</button>
+          </div>
+        </div>
+
+        <div id="products-grid" class="products shop-products" aria-live="polite">
+          <div class="catalog-loading">
+            <span class="loading-ring"></span>
+            <p>Cargando catálogo Strong...</p>
+          </div>
+        </div>
+
+        <div class="catalog-footnote">
+          <span>01 — PRODUCTOS DISPONIBLES</span>
+          <span>CONSULTAS Y PEDIDOS ONLINE <b>↗</b></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Identidad de marca -->
+    <section class="block brand-section" id="marca">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">LA IDENTIDAD ESTÁ EN EL PRODUCTO</div>
+            <h2>NO ES SOLO<br><span>UN VOLANTÍN.</span></h2>
+          </div>
+          <p>
+            Strong une diseño y fabricación para crear productos con una identidad
+            reconocible. Cada detalle forma parte de la experiencia: desde la
+            gráfica del papel hasta el carrete.
+          </p>
+        </div>
+
+        <div class="story-grid">
+          <article class="story-card story-photo tilt">
+            <img
+              src="static/assets/carrete-strong-real.png"
+              alt="Detalle del carrete Strong de madera laminada"
+            >
+            <span class="story-stamp">STRONG<br>EST. CHILE</span>
+          </article>
+
+          <article class="story-card text">
+            <div>
+              <div class="eyebrow">DISEÑO + OFICIO</div>
+              <h3>COLOR.<br>MADERA.<br><span>VUELO.</span></h3>
+            </div>
+            <p>
+              Volantines con gráficas intensas. Carretes con carácter propio.
+              Productos creados para quienes disfrutan cada parte de hacer volar.
+            </p>
+            <a
+              href="https://www.instagram.com/volantines.strong/"
+              target="_blank"
+              rel="noopener"
+              class="story-link"
+            >
+              CONOCE NUESTRO TRABAJO <b>↗</b>
+            </a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contacto -->
+    <section class="cta" id="contacto">
+      <div class="container">
+        <div class="cta-panel">
+          <div>
+            <div class="eyebrow">¿LISTO PARA VOLAR?</div>
+            <h2>QUÉ DISEÑO<br>HACEMOS VOLAR?</h2>
+          </div>
+          <div>
+            <p>
+              Revisa el catálogo, consulta por disponibilidad o conoce las
+              novedades y diseños de Volantines Strong en nuestras redes.
+            </p>
+            <div class="cta-actions">
+              <a
+                class="pill red"
+                href="https://www.instagram.com/volantines.strong/"
+                target="_blank"
+                rel="noopener"
+              >Instagram ↗</a>
+              <a class="pill dark-pill" href="#productos">Ver productos</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer público: sin acceso al administrador -->
+  <footer class="site-footer">
+    <div class="container footer-main">
+      <a href="#inicio" class="brand footer-brand">
+        <span class="logo-dot">
+          <img
+            src="static/assets/LogoVolantineStrong.png"
+            alt="Logo Volantines Strong"
+            class="LogoVolantineStrong"
+          >
+        </span>
+        <span class="brand-name">
+          VOLANTINES <b>STRONG</b>
+          <small>TRADICIÓN · DISEÑO · COMPETICIÓN</small>
+        </span>
+      </a>
+
+      <p>DISEÑADOS PARA DESTACAR.<br>HECHOS PARA EL CIELO.</p>
+
+      <div class="footer-links">
+        <a
+          id="footer-ig"
+          href="https://www.instagram.com/volantines.strong/"
+          target="_blank"
+          rel="noopener"
+        >INSTAGRAM ↗</a>
+        <a
+          id="footer-wa"
+          href="#"
+          target="_blank"
+          rel="noopener"
+        >WHATSAPP ↗</a>
+      </div>
+    </div>
+
+    <div class="container footer-bottom">
+      <span>© <span id="year"></span> VOLANTINES STRONG</span>
+      <span id="footer-address">Taller Strong · Chile</span>
+      <span>HECHO CON IDENTIDAD <b>✳</b></span>
+    </div>
+  </footer>
+  
+  
+<div class="social-floats">
+
+  <!-- INSTAGRAM -->
+  <a
+    id="float-ig"
+    href="https://www.instagram.com/volantines.strong/"
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="Instagram"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="2" y="2" width="20" height="20" rx="5"/>
+      <circle cx="12" cy="12" r="4"/>
+      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+    </svg>
+  </a>
+
+  <!-- WHATSAPP -->
+  <a
+    id="float-wa"
+    href="#"
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="WhatsApp"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M20.52 3.48A11.85 11.85 0 0 0 12.06 0C5.45 0 .07 5.37.07 11.98c0 2.11.55 4.17 1.61 5.99L0 24l6.19-1.62a11.91 11.91 0 0 0 5.87 1.5h.01c6.6 0 11.98-5.38 11.98-11.99a11.9 11.9 0 0 0-3.53-8.41ZM12.07 21.85a9.84 9.84 0 0 1-5.01-1.37l-.36-.21-3.71.97.99-3.62-.24-.37a9.86 9.86 0 0 1-1.51-5.27c0-5.44 4.42-9.87 9.86-9.87a9.8 9.8 0 0 1 6.98 2.9 9.8 9.8 0 0 1 2.88 6.99c0 5.44-4.43 9.87-9.88 9.87a9.8 9.8 0 0 1 2.88 6.99c0 5.44-4.43 9.87-9.88 9.87Zm5.41-7.4c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.66.15-.2.3-.76.97-.93 1.17-.17.2-.34.22-.64.07-.3-.15-1.25-.46-2.38-1.47-.88-.79-1.47-1.76-1.64-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.44-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.66-1.58-.9-2.16-.24-.57-.48-.49-.66-.5h-.56c-.2 0-.52.07-.79.37-.27.3-1.03 1-1.03 2.43s1.05 2.82 1.2 3.02c.15.2 2.07 3.16 5.02 4.43.7.3 1.25.48 1.68.61.71.23 1.35.2 1.86.12.57-.08 1.76-.72 2.01-1.42.25-.7.25-1.3.17-1.42-.07-.12-.27-.2-.57-.35Z"/>
+    </svg>
+  </a>
+
+</div>
+
+<!-- Carrito de compras -->
+<div class="fixed inset-0 z-50 hidden" id="cart-drawer">
+  <div
+    class="drawer-backdrop absolute inset-0 bg-slate-900/50 backdrop-blur-xs"
+    id="cart-backdrop"
+  ></div>
+
+  <div class="drawer-panel absolute right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-2xl flex flex-col">
+
+    <!-- Encabezado carrito -->
+    <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+      <h3 class="font-extrabold text-lg text-slate-900">Tu Pedido</h3>
+      <button
+        class="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center font-bold text-slate-500"
+        id="close-cart-btn"
+      >✕</button>
+    </div>
+
+    <!-- Paso 1: Lista de ítems -->
+    <div
+      class="flex-1 overflow-y-auto p-5 space-y-4"
+      id="cart-items-step"
+    >
+      <div class="space-y-3" id="cart-items-container"></div>
+    </div>
+
+    <!-- Paso 2: Formulario checkout -->
+    <form
+      class="hidden flex-1 overflow-y-auto p-5 space-y-4"
+      id="checkout-form"
+    >
+      <button
+        class="text-xs font-bold text-sky-600 hover:underline"
+        id="back-to-cart-btn"
+        type="button"
+      >← Volver al carrito</button>
+
+      <h4 class="font-extrabold text-base text-slate-900">
+        Datos del Comprador
+      </h4>
+
+      <div class="space-y-3 text-sm">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">
+            Nombre Completo *
+          </label>
+          <input
+            class="w-full px-3 py-2 rounded-lg border border-slate-300"
+            id="chk-name"
+            required
+            type="text"
+          >
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">
+              RUT Chileno *
+            </label>
+            <input
+              class="w-full px-3 py-2 rounded-lg border border-slate-300"
+              id="chk-rut"
+              placeholder="12.345.678-9"
+              required
+              type="text"
+            >
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">
+              Teléfono *
+            </label>
+            <input
+              class="w-full px-3 py-2 rounded-lg border border-slate-300"
+              id="chk-phone"
+              placeholder="+56 9 1234 5678"
+              required
+              type="tel"
+            >
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">
+            Correo Electrónico *
+          </label>
+          <input
+            class="w-full px-3 py-2 rounded-lg border border-slate-300"
+            id="chk-email"
+            required
+            type="email"
+          >
+        </div>
+
+        <!-- Tipo de entrega -->
+        <div class="pt-2">
+          <label class="block text-xs font-bold text-slate-700 mb-2">
+            Método de Entrega *
+          </label>
+
+          <div class="grid grid-cols-2 gap-2">
+            <label class="cursor-pointer border rounded-xl p-3 flex items-center gap-2 has-[:checked]:border-sky-600 has-[:checked]:bg-sky-50">
+              <input
+                checked
+                class="accent-sky-600"
+                name="delivery_type"
+                type="radio"
+                value="click_collect"
+              >
+              <span class="text-xs font-bold">
+                Retiro Taller (Gratis)
+              </span>
+            </label>
+
+            <label class="cursor-pointer border rounded-xl p-3 flex items-center gap-2 has-[:checked]:border-sky-600 has-[:checked]:bg-sky-50">
+              <input
+                class="accent-sky-600"
+                name="delivery_type"
+                type="radio"
+                value="delivery"
+              >
+              <span class="text-xs font-bold">
+                Despacho Domicilio
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Campos Click & Collect -->
+        <div
+          class="p-3 rounded-xl bg-sky-50/70 border border-sky-200 space-y-3"
+          id="fields-click-collect"
+        >
+          <p class="text-xs font-bold text-sky-900">
+            Agenda tu Bloque de Retiro (Click & Collect)
+          </p>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                Fecha *
+              </label>
+              <input
+                class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs bg-white"
+                id="chk-date"
+                type="date"
+              >
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                Bloque Horario *
+              </label>
+              <select
+                class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs bg-white"
+                id="chk-slot"
+              >
+                <option value="10:00 - 12:00">10:00 - 12:00 hrs</option>
+                <option value="12:00 - 14:00">12:00 - 14:00 hrs</option>
+                <option value="15:00 - 17:00">15:00 - 17:00 hrs</option>
+                <option value="17:00 - 19:00">17:00 - 19:00 hrs</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Campos Despacho Domicilio -->
+        <div
+          class="hidden p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-3"
+          id="fields-delivery"
+        >
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                Región *
+              </label>
+              <input
+                class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs bg-white"
+                id="chk-region"
+                type="text"
+                value="Región Metropolitana"
+              >
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                Comuna *
+              </label>
+              <input
+                class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs bg-white"
+                id="chk-commune"
+                placeholder="Ej: Santiago"
+                type="text"
+              >
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-700 mb-1">
+              Dirección Exacta *
+            </label>
+            <input
+              class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs bg-white"
+              id="chk-address"
+              placeholder="Calle, número, depto"
+              type="text"
+            >
+          </div>
+        </div>
+
+        <!-- Medio de pago -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">
+            Medio de Pago Preferido (aun no se realizara ningun cobro)
+          </label>
+          <select
+            class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold"
+            id="chk-payment"
+          >
+            <option value="webpay">
+              Webpay Plus (Débito / Crédito Transbank)
+            </option>
+            <option value="mercadopago">
+              Mercado Pago Checkout
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <button
+        class="w-full py-3.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:bg-slate-300 text-white font-bold text-sm shadow-lg transition-colors"
+        id="submit-order-btn"
+        type="submit"
+      >
+        Registrar pedido (pago pendiente)
+      </button>
+    </form>
+
+    <!-- Footer carrito -->
+    <div
+      class="p-5 border-t border-slate-200 bg-slate-50"
+      id="cart-footer"
+    >
+      <div class="flex justify-between items-center mb-4">
+        <span class="text-sm font-semibold text-slate-600">
+          Total a pagar
+        </span>
+        <span
+          class="text-2xl font-black text-slate-900"
+          id="cart-total"
+        >$0</span>
+      </div>
+
+      <button
+        class="w-full py-3.5 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-bold text-sm transition-colors"
+        id="proceed-checkout-btn"
+      >
+        Continuar al Checkout
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts originales de la tienda -->
+<script src="{% static 'js/supabase-client.js' %}"></script>
+<script src="{% static 'js/store.js' %}"></script>
+<script src="{% static 'js/cart.js' %}"></script>
+
+<script>
+  document.getElementById('year').textContent =
+    new Date().getFullYear();
+
+  const stage = document.getElementById('stage');
+  const kite = document.getElementById('kite3d');
+
+  if (stage && kite && window.matchMedia('(pointer:fine)').matches) {
+    stage.addEventListener('mousemove', (event) => {
+      const rect = stage.getBoundingClientRect();
+      const x = (event.clientX - rect.left) / rect.width - .5;
+      const y = (event.clientY - rect.top) / rect.height - .5;
+
+      kite.style.transform =
+        `perspective(1100px) rotateX(${-y * 8}deg) rotateY(${x * 12}deg) translateY(${y * 5}px)`;
+    });
+
+    stage.addEventListener('mouseleave', () => {
+      kite.style.transform = '';
+    });
+  }
+
+  document.querySelectorAll('.source-card.tilt, .story-photo.tilt')
+    .forEach((card) => {
+      if (!window.matchMedia('(pointer:fine)').matches) return;
+
+      card.addEventListener('mousemove', (event) => {
+        const rect = card.getBoundingClientRect();
+        const x = (event.clientX - rect.left) / rect.width - .5;
+        const y = (event.clientY - rect.top) / rect.height - .5;
+
+        card.style.transform =
+          `perspective(1000px) rotateX(${-y * 4}deg) rotateY(${x * 5}deg) translateY(-3px)`;
+      });
+
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = '';
+      });
+    });
+</script>

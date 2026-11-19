@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Panel de Control | Administración Volantines Strong{% endblock %}
+
+{% block content %}
+
+  <!-- ==========================================
+     LOGIN ADMINISTRADOR (hidden when logged in)
+     ========================================== -->
+
+  <div id="login-view" class="hidden">
+    <!-- Login form is loaded separately -->
+  </div>
+
+  <!-- ==========================================
+     DASHBOARD ADMINISTRADOR
+     ========================================== -->
+
+  <div id="dashboard-view">
+
+    <header class="admin-header">
+      <div class="admin-shell admin-header-inner">
+
+        <div class="admin-header-brand">
+          <span class="admin-logo">
+            <img
+              src="static/assets/LogoVolantineStrong.png"
+              alt="Logo Volantines Strong"
+              class="LogoVolantineStrong"
+            >
+          </span>
+
+          <span class="admin-header-title">
+            VOLANTINES STRONG <span>/ ADMIN</span>
+          </span>
+        </div>
+
+        <div class="admin-header-actions">
+          <button
+            id="logout-btn"
+            class="logout-btn"
+            type="button"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+
+      </div>
+    </header>
+
+    <main class="admin-shell admin-main">
+
+      <div class="admin-welcome">
+        <div>
+          <div class="admin-eyebrow">
+            VOLANTINES STRONG / CENTRO DE CONTROL
+          </div>
+
+          <h1>
+            Gestiona tu<br>
+            <span>tienda.</span>
+          </h1>
+        </div>
+
+        <p>
+          Desde aquí puedes administrar los productos publicados,
+          revisar el inventario y actualizar el estado de
+          los pedidos recibidos.
+        </p>
+      </div>
+
+      <!-- ======================================
+         01 / PRODUCTOS
+         ====================================== -->
+
+      <section class="admin-section">
+
+        <div class="admin-section-head">
+          <div>
+            <div class="section-index">
+              01 / CATÁLOGO
+            </div>
+
+            <h2 id="form-title" style="margin-top:7px;">
+              Agregar nuevo producto
+            </h2>
+
+            <p>
+              Completa los datos para publicar
+              o actualizar un producto.
+            </p>
+          </div>
+
+          <span class="admin-eyebrow">
+            PRODUCTOS
+          </span>
+        </div>
+
+        <form id="product-form" class="admin-form-grid">
+
+          <input type="hidden" id="prod-id">
+
+          <div class="admin-field">
+            <label for="prod-name">
+              Nombre del producto *
+            </label>
+
+            <input
+              class="admin-input"
+              type="text"
+              id="prod-name"
+              placeholder="Ej: Volantín Strong 50x50"
+              required
+            >
+          </div>
+
+          <div class="admin-field">
+            <label for="prod-category">
+              Categoría *
+            </label>
+
+            <select class="admin-select" id="prod-category">
+              <option value="Competencia">Competencia</option>
+              <option value="Recreativos">Recreativos</option>
+              <option value="Hilo">Hilo</option>
+              <option value="Accesorios">Accesorios</option>
+            </select>
+          </div>
+
+          <div class="admin-field">
+            <label>
+              Precio y stock *
+            </label>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+              <input
+                class="admin-input"
+                type="number"
+                id="prod-price"
+                min="0"
+                placeholder="Precio CLP"
+                aria-label="Precio en pesos chilenos"
+                required
+              >
+
+              <input
+                class="admin-input"
+                type="number"
+                id="prod-stock"
+                min="0"
+                placeholder="Stock"
+                aria-label="Stock disponible"
+                required
+              >
+            </div>
+          </div>
+
+          <div class="admin-field">
+            <label for="prod-specs">
+              Ficha técnica
+            </label>
+
+            <input
+              class="admin-input"
+              type="text"
+              id="prod-specs"
+              placeholder="Ej: 50x50 cm | Papel seda"
+            >
+          </div>
+          
+
+<!-- ========================================
+     GALERÍA DE IMÁGENES DEL PRODUCTO
+     ====================================== -->
+
+<div class="admin-field">
+
+    <!-- IMAGEN PRINCIPAL -->
+    <label for="prod-image-file">
+        Imagen principal del producto
+    </label>
+
+    <input
+        class="admin-input"
+        type="file"
+        id="prod-image-file"
+        accept="image/jpeg,image/png,image/webp"
+    >
+
+    <input
+        type="hidden"
+        id="prod-image-url"
+    >
+
+    <p class="admin-hint">
+        Imagen que aparecerá primero en el catálogo.
+        Máximo 3 MB.
+    </p>
+
+    <!-- IMÁGENES ADICIONALES -->
+    <label
+        for="prod-gallery-files"
+        style="margin-top:20px;"
+    >
+        Galería de fotografías adicionales
+    </label>
+
+    <input
+        class="admin-input"
+        type="file"
+        id="prod-gallery-files"
+        accept="image/jpeg,image/png,image/webp"
+        multiple
+    >
+
+    <p class="admin-hint">
+        Puedes seleccionar hasta 4 fotografías adicionales.
+        Máximo 3 MB por imagen.
+    </p>
+
+    <!-- FOTOGRAFÍAS GUARDADAS -->
+    <div
+        id="product-gallery-preview"
+        class="product-gallery-preview"
+    ></div>
+
+</div>
+
+
+          <div class="admin-field">
+            <label for="prod-desc">
+              Descripción
+            </label>
+
+            <input
+              class="admin-input"
+              type="text"
+              id="prod-desc"
+              placeholder="Describe brevemente el producto"
+            >
+          </div>
+
+          <div class="form-actions">
+
+            <button
+              type="submit"
+              id="save-prod-btn"
+              class="admin-btn"
+            >
+              Guardar producto ↗
+            </button>
+
+            <button
+              type="button"
+              id="cancel-edit-btn"
+              class="admin-btn secondary hidden"
+            >
+              Cancelar edición
+            </button>
+
+          </div>
+        </form>
+
+        <p class="admin-hint">
+          Las imágenes seleccionadas se suben al bucket
+          <strong>product-images</strong>
+          de Supabase Storage.
+        </p>
+
+      </section>
+
+      <!-- ======================================
+         02 / INVENTARIO
+         ====================================== -->
+
+      <section class="admin-section">
+
+        <div class="admin-section-head">
+          <div>
+            <div class="section-index">
+              02 / STOCK
+            </div>
+
+            <h2 style="margin-top:7px;">
+              Inventario en catálogo
+            </h2>
+
+            <p>
+              Productos que están registrados en la tienda.
+            </p>
+          </div>
+
+          <span class="admin-eyebrow">
+            INVENTARIO
+          </span>
+        </div>
+
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th>Precio</th>
+                <th>Stock</th>
+                <th style="text-align:right;">Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody id="admin-products-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ======================================
+         03 / PEDIDOS
+         ====================================== -->
+
+      <section class="admin-section">
+
+        <div class="admin-section-head">
+          <div>
+            <div class="section-index">
+              03 / VENTAS
+            </div>
+
+            <h2 style="margin-top:7px;">
+              Pedidos entrantes
+            </h2>
+
+            <p>
+              Revisa los datos de clientes,
+              entregas y estado de cada pedido.
+            </p>
+          </div>
+
+          
+<div class="admin-order-actions">
+
+    <button
+        type="button"
+        onclick="loadAdminOrders()"
+        class="admin-btn secondary"
+    >
+        ↻ Actualizar pedidos
+    </button>
+
+    <button
+        type="button"
+        id="export-orders-btn"
+        class="admin-btn export-excel-btn"
+    >
+        ↓ Exportar Excel
+    </button>
+
+</div>
+
+        </div>
+        
+
+        
+<!-- TABLA DE PEDIDOS RESPONSIVA -->
+<div class="admin-table-wrap admin-orders-table-wrap">
+
+  <table class="admin-table admin-orders-table">
+
+    <thead>
+      <tr>
+        <th># Orden</th>
+        <th>Cliente / RUT</th>
+        <th>Entrega / horario</th>
+        <th>Total</th>
+        <th>Estado del pedido</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+
+    <tbody id="admin-orders-tbody"></tbody>
+
+  </table>
+
+</div>
+
+
+        <p class="admin-hint">
+          Puedes cambiar el estado de un pedido
+          desde el selector de la última columna.
+        </p>
+      </section>
+    </main>
+
+    <!-- FOOTER ADMINISTRADOR -->
+    <footer class="admin-footer">
+      <div class="admin-shell admin-footer-inner">
+        <span>
+          © <span id="admin-year"></span>
+          VOLANTINES STRONG
+        </span>
+
+        <span>
+          GESTIÓN DE TIENDA / PANEL ADMINISTRADOR
+        </span>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<!-- SUPABASE Y ADMIN.JS -->
+<script src="{% static 'js/supabase-client.js' %}"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="{% static 'js/admin.js' %}"></script>
+
+<script>
+  const adminYear = document.getElementById('admin-year');
+
+  if (adminYear) {
+    adminYear.textContent = new Date().getFullYear();
+  }
+</script>

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Catálogo | Volantines Strong{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="section-head catalog-head">
+    <div>
+      <div class="eyebrow">CATÁLOGO ONLINE / STOCK EN TIEMPO REAL</div>
+      <h2>QUE NO TE FALLE<br><span>HILO NI CARRETE.</span></h2>
+    </div>
+    <p>
+      Explora los productos disponibles. El catálogo y el stock se
+      actualizan directamente desde nuestro sistema.
+    </p>
+  </div>
+
+  <div class="catalog-toolbar">
+    <label class="search-wrap">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="10.8" cy="10.8" r="6.8"></circle>
+        <path d="m16 16 5 5"></path>
+      </svg>
+      <input
+        type="search"
+        placeholder="Buscar volantines, carretes, hilos..."
+        autocomplete="off"
+        aria-label="Buscar productos"
+      >
+    </label>
+
+    <div id="category-filters" class="category-filters">
+      <button type="button" class="cat-btn is-active" data-cat="ALL">Todos</button>
+      <button type="button" class="cat-btn" data-cat="Competencia">Competencia</button>
+      <button type="button" class="cat-btn" data-cat="Recreativos">Recreativos</button>
+      <button type="button" class="cat-btn" data-cat="Hilo">Hilos</button>
+      <button type="button" class="cat-btn" data-cat="Accesorios">Accesorios</button>
+    </div>
+  </div>
+
+  <div id="products-grid" class="products shop-products" aria-live="polite">
+    <div class="catalog-loading">
+      <span class="loading-ring"></span>
+      <p>Cargando catálogo Strong...</p>
+    </div>
+  </div>
+
+  <div class="catalog-footnote">
+    <span>01 — PRODUCTOS DISPONIBLES</span>
+    <span>CONSULTAS Y PEDIDOS ONLINE <b>↗</b></span>
+  </div>
+</div>
+{% endblock %}
