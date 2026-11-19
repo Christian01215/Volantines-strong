@@ -10,7 +10,7 @@ def catalog(request):
         products = products.filter(name__icontains=query) | products.filter(specs__icontains=query)
     if cat_filter:
         products = products.filter(category__slug=cat_filter)
-    return render(request, "products/catalog.html", {"categories": categories, "products": products, "query": query, "cat_filter": cat_filter})
+    return render(request, "storefront/index.html", {"categories": categories, "products": products, "query": query, "cat_filter": cat_filter})
 
 def product_detail(request, slug):
     product = get_object_or_404(Product, slug=slug, is_active=True)

@@ -39,3 +39,8 @@ class Product(models.Model):
     @property
     def formatted_price(self):
         return f"${self.price:,.0f} CLP"
+
+    @property
+    def price_display(self):
+        """Precio en formato chileno para la grilla del catálogo."""
+        return f"${self.price:,}".replace(",", ".")
