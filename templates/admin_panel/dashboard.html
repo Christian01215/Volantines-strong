@@ -1,21 +1,6 @@
-{% extends "base.html" %}
+{% extends "admin_panel/base_admin.html" %}
 {% load static %}
-{% block title %}Panel de Control | Administración Volantines Strong{% endblock %}
-
-{% block content %}
-
-  <!-- ==========================================
-     LOGIN ADMINISTRADOR (hidden when logged in)
-     ========================================== -->
-
-  <div id="login-view" class="hidden">
-    <!-- Login form is loaded separately -->
-  </div>
-
-  <!-- ==========================================
-     DASHBOARD ADMINISTRADOR
-     ========================================== -->
-
+{% block admin_content %}
   <div id="dashboard-view">
 
     <header class="admin-header">
@@ -24,7 +9,7 @@
         <div class="admin-header-brand">
           <span class="admin-logo">
             <img
-              src="static/assets/LogoVolantineStrong.png"
+              src="{% static 'assets/LogoVolantineStrong.png' %}"
               alt="Logo Volantines Strong"
               class="LogoVolantineStrong"
             >
@@ -36,13 +21,16 @@
         </div>
 
         <div class="admin-header-actions">
-          <button
-            id="logout-btn"
-            class="logout-btn"
-            type="button"
-          >
-            Cerrar sesión
-          </button>
+          <form method="post" action="{% url 'admin_panel:logout' %}">
+            {% csrf_token %}
+            <button
+              id="logout-btn"
+              class="logout-btn"
+              type="submit"
+            >
+              Cerrar sesión
+            </button>
+          </form>
         </div>
 
       </div>
@@ -70,8 +58,8 @@
       </div>
 
       <!-- ======================================
-         01 / PRODUCTOS
-         ====================================== -->
+           01 / PRODUCTOS
+           ====================================== -->
 
       <section class="admin-section">
 
@@ -82,7 +70,7 @@
             </div>
 
             <h2 id="form-title" style="margin-top:7px;">
-              Agregar nuevo producto
+              {% if editing_product %}Editar producto{% else %}Agregar nuevo producto{% endif %}
             </h2>
 
             <p>
@@ -96,9 +84,10 @@
           </span>
         </div>
 
-        <form id="product-form" class="admin-form-grid">
+        <form id="product-form" class="admin-form-grid" method="post" enctype="multipart/form-data" action="{% url 'admin_panel:product_save' %}">
+          {% csrf_token %}
 
-          <input type="hidden" id="prod-id">
+          <input type="hidden" id="prod-id" value="{{ editing_product.pk|default:'' }}" name="prod_id">
 
           <div class="admin-field">
             <label for="prod-name">
@@ -108,7 +97,8 @@
             <input
               class="admin-input"
               type="text"
-              id="prod-name"
+              id="prod-name" value="{{ editing_product.name|default:'' }}"
+               name="prod_name"
               placeholder="Ej: Volantín Strong 50x50"
               required
             >
@@ -119,11 +109,15 @@
               Categoría *
             </label>
 
-            <select class="admin-select" id="prod-category">
+            <select class="admin-select" id="prod-category" name="prod_category">
+              {% for category in categories %}
+              <option value="{{ category.pk }}" {% if editing_product.category_id == category.pk %}selected{% endif %}>{{ category.name }}</option>
+              {% empty %}
               <option value="Competencia">Competencia</option>
               <option value="Recreativos">Recreativos</option>
               <option value="Hilo">Hilo</option>
               <option value="Accesorios">Accesorios</option>
+              {% endfor %}
             </select>
           </div>
 
@@ -136,7 +130,8 @@
               <input
                 class="admin-input"
                 type="number"
-                id="prod-price"
+                id="prod-price" value="{{ editing_product.price|default:'' }}"
+                 name="prod_price"
                 min="0"
                 placeholder="Precio CLP"
                 aria-label="Precio en pesos chilenos"
@@ -146,7 +141,8 @@
               <input
                 class="admin-input"
                 type="number"
-                id="prod-stock"
+                id="prod-stock" value="{{ editing_product.stock|default:'' }}"
+                 name="prod_stock"
                 min="0"
                 placeholder="Stock"
                 aria-label="Stock disponible"
@@ -163,15 +159,16 @@
             <input
               class="admin-input"
               type="text"
-              id="prod-specs"
+              id="prod-specs" value="{{ editing_product.specs|default:'' }}"
+               name="prod_specs"
               placeholder="Ej: 50x50 cm | Papel seda"
             >
           </div>
-          
 
+          
 <!-- ========================================
      GALERÍA DE IMÁGENES DEL PRODUCTO
-     ====================================== -->
+     ======================================== -->
 
 <div class="admin-field">
 
@@ -184,6 +181,7 @@
         class="admin-input"
         type="file"
         id="prod-image-file"
+               name="prod_image_file"
         accept="image/jpeg,image/png,image/webp"
     >
 
@@ -209,6 +207,7 @@
         class="admin-input"
         type="file"
         id="prod-gallery-files"
+               name="prod_gallery_files"
         accept="image/jpeg,image/png,image/webp"
         multiple
     >
@@ -235,7 +234,8 @@
             <input
               class="admin-input"
               type="text"
-              id="prod-desc"
+              id="prod-desc" value="{{ editing_product.description|default:'' }}"
+               name="prod_desc"
               placeholder="Describe brevemente el producto"
             >
           </div>
@@ -247,13 +247,13 @@
               id="save-prod-btn"
               class="admin-btn"
             >
-              Guardar producto ↗
+              {% if editing_product %}Actualizar producto ↗{% else %}Guardar producto ↗{% endif %}
             </button>
 
             <button
               type="button"
-              id="cancel-edit-btn"
-              class="admin-btn secondary hidden"
+              id="cancel-edit-btn" onclick="window.location.href='{% url 'admin_panel:dashboard' %}'"
+              class="admin-btn secondary {% if not editing_product %}hidden{% endif %}"
             >
               Cancelar edición
             </button>
@@ -270,8 +270,8 @@
       </section>
 
       <!-- ======================================
-         02 / INVENTARIO
-         ====================================== -->
+           02 / INVENTARIO
+           ====================================== -->
 
       <section class="admin-section">
 
@@ -308,14 +308,45 @@
               </tr>
             </thead>
 
-            <tbody id="admin-products-tbody"></tbody>
+            <tbody id="admin-products-tbody">
+              {% for product in products %}
+              <tr
+                data-id="{{ product.pk }}"
+                data-name="{{ product.name }}"
+                data-category="{{ product.category_id }}"
+                data-price="{{ product.price }}"
+                data-stock="{{ product.stock }}"
+                data-specs="{{ product.specs }}"
+                data-description="{{ product.description }}"
+                data-image="{% if product.image %}{{ product.image.url }}{% endif %}"
+                data-edit-url="{% url 'admin_panel:product_edit' product.pk %}"
+                data-delete-url="{% url 'admin_panel:product_delete' product.pk %}"
+              >
+                <td>
+                  {% if product.image %}<img src="{{ product.image.url }}" alt="{{ product.name }}" width="42" height="42" style="object-fit:contain;border-radius:8px;margin-right:8px;">{% endif %}
+                  {{ product.name }}
+                </td>
+                <td>{{ product.category.name }}</td>
+                <td>${{ product.price_display }}</td>
+                <td>{{ product.stock }}</td>
+                <td style="text-align:right;">
+                  <button type="button" class="admin-btn secondary" data-action="edit-product">Editar</button>
+                  <button type="button" class="delete-order-btn" data-action="delete-product">Eliminar</button>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5">No hay productos registrados.</td></tr>
+              {% endfor %}
+            </tbody>
+
           </table>
         </div>
+
       </section>
 
       <!-- ======================================
-         03 / PEDIDOS
-         ====================================== -->
+           03 / PEDIDOS
+           ====================================== -->
 
       <section class="admin-section">
 
@@ -357,7 +388,6 @@
 </div>
 
         </div>
-        
 
         
 <!-- TABLA DE PEDIDOS RESPONSIVA -->
@@ -376,7 +406,40 @@
       </tr>
     </thead>
 
-    <tbody id="admin-orders-tbody"></tbody>
+    <tbody id="admin-orders-tbody">
+              {% for order in orders %}
+              <tr>
+                <td>{{ order.code }}</td>
+                <td>
+                  {{ order.customer_name|default:"—" }}<br>
+                  <span style="color:#777;">{{ order.customer_rut|default:"—" }}</span>
+                </td>
+                <td>
+                  {{ order.get_delivery_type_display }}<br>
+                  <span style="color:#777;">{{ order.pickup_date|default:"" }} {{ order.pickup_slot }}</span>
+                </td>
+                <td>${{ order.total_display }}</td>
+                <td>
+                  <select data-order-id="{{ order.code }}" data-url="{% url 'admin_panel:order_status_update' order.code %}">
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if order.status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td>
+                  <div class="admin-order-row-actions">
+                    {% if order.receipt_url %}
+                    <a class="admin-btn secondary" href="{{ order.receipt_url }}" target="_blank" rel="noopener">Ver comprobante</a>
+                    {% endif %}
+                    <button type="button" class="notify-order-btn" data-url="{% url 'admin_panel:order_notify' order.code %}" {% if not order.customer_email %}disabled{% endif %}>Notificar</button>
+                    <button type="button" class="delete-order-btn" data-url="{% url 'admin_panel:order_delete' order.code %}">Eliminar</button>
+                  </div>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="6">No hay pedidos registrados.</td></tr>
+              {% endfor %}
+            </tbody>
 
   </table>
 
@@ -387,7 +450,9 @@
           Puedes cambiar el estado de un pedido
           desde el selector de la última columna.
         </p>
+
       </section>
+
     </main>
 
     <!-- FOOTER ADMINISTRADOR -->
@@ -403,18 +468,6 @@
         </span>
       </div>
     </footer>
+
   </div>
-</div>
-
-<!-- SUPABASE Y ADMIN.JS -->
-<script src="{% static 'js/supabase-client.js' %}"></script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-<script src="{% static 'js/admin.js' %}"></script>
-
-<script>
-  const adminYear = document.getElementById('admin-year');
-
-  if (adminYear) {
-    adminYear.textContent = new Date().getFullYear();
-  }
-</script>
+{% endblock %}

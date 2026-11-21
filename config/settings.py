@@ -32,6 +32,21 @@ ALLOWED_HOSTS = [
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY', '')
 SUPABASE_STORAGE_BUCKET = os.environ.get('SUPABASE_STORAGE_BUCKET', '')
+SUPABASE_RECEIPTS_BUCKET = os.environ.get('SUPABASE_RECEIPTS_BUCKET', 'payment-receipts')
+
+# Correo (Resend) — la key se carga del entorno; sin key se usa la consola en local.
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', '')
+DEFAULT_FROM_EMAIL = os.environ.get(
+    'DEFAULT_FROM_EMAIL',
+    'Volantines Strong <onboarding@resend.dev>',
+)
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND') or (
+    'config.email_backends.ResendEmailBackend'
+    if RESEND_API_KEY
+    else 'django.core.mail.backends.console.EmailBackend'
+)
+LOGIN_URL = 'admin_panel:login'
 
 
 # Application definition
@@ -81,14 +96,22 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 
 # Database
-# Usa DATABASE_URL de Supabase si está definida en .env; de lo contrario usa SQLite local.
-DATABASES = {
-    'default': dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=0,
-        ssl_require=bool(os.environ.get('DATABASE_URL')),
-    )
-}
+# Usa DATABASE_URL de Supabase si está definida; de lo contrario usa SQLite local.
+DATABASE_URL = os.environ.get('DATABASE_URL')
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.config(
+            conn_max_age=0,
+            ssl_require=True,
+        )
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -126,11 +149,5 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-
-# Email
-
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

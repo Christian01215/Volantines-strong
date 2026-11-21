@@ -190,29 +190,64 @@
   if (dateInput) dateInput.min = new Date().toISOString().split('T')[0];
 
   if (form) {
-    form.addEventListener('submit', function (event) {
+    form.addEventListener('submit', async function (event) {
       event.preventDefault();
 
-      var code = 'VC' + String(Math.floor(10000000 + Math.random() * 90000000));
+      var errorLabel = NS.byId('checkout-error');
+      var submitBtn = NS.byId('submit-order-btn');
+      var cartJson = NS.byId('chk-cart-json');
       var booking = document.querySelector('input[name="delivery_type"]:checked');
       var method = booking ? booking.value : 'click_collect';
 
-      if (container) {
-        container.innerHTML = '' +
-          '<div class="text-center py-8">' +
-            '<p class="text-xs font-bold uppercase text-red-600">Pedido registrado</p>' +
-            '<h4 class="text-2xl font-black text-slate-900 mt-2">' + code + '</h4>' +
-            '<p class="text-xs text-slate-500 mt-2">' +
-              (method === 'click_collect'
-                ? 'Retiro en taller · pago pendiente'
-                : 'Despacho a domicilio · pago pendiente') +
-            '</p>' +
-          '</div>';
+      if (errorLabel) errorLabel.classList.add('hidden');
+      if (cartJson) cartJson.value = JSON.stringify(items);
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Registrando pedido...';
       }
 
-      if (itemsStep) itemsStep.classList.remove('hidden');
-      if (footer) footer.classList.add('hidden');
-      window.StrongCart.clear();
+      try {
+        var response = await fetch(form.action, {
+          method: 'POST',
+          body: new FormData(form),
+          headers: {
+            'X-CSRFToken': form.querySelector('[name="csrfmiddlewaretoken"]').value,
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          credentials: 'same-origin'
+        });
+        var data = await response.json();
+
+        if (!response.ok || !data.ok) {
+          throw new Error(data.message || 'No se pudo registrar el pedido.');
+        }
+
+        if (container) {
+          container.innerHTML = '' +
+            '<div class="text-center py-8">' +
+              '<p class="text-xs font-bold uppercase text-red-600">Pedido registrado</p>' +
+              '<h4 class="text-2xl font-black text-slate-900 mt-2">' + data.code + '</h4>' +
+              '<p class="text-xs text-slate-500 mt-2">' +
+                data.message +
+              '</p>' +
+            '</div>';
+        }
+
+        if (itemsStep) itemsStep.classList.remove('hidden');
+        if (footer) footer.classList.add('hidden');
+        if (form) form.classList.add('hidden');
+        window.StrongCart.clear();
+      } catch (error) {
+        if (errorLabel) {
+          errorLabel.textContent = error.message;
+          errorLabel.classList.remove('hidden');
+        }
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Registrar pedido (pago pendiente)';
+        }
+      }
     });
   }
 

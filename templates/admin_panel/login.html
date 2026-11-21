@@ -1,77 +1,88 @@
-{% extends "base.html" %}
+{% extends "admin_panel/base_admin.html" %}
 {% load static %}
-{% block title %}Iniciar Sesión | Administración Volantines Strong{% endblock %}
+{% block admin_content %}
+  <div id="login-view">
+    <div class="login-card">
 
-{% block content %}
-<div id="login-view">
+      <div class="admin-brand">
+        <span class="admin-logo">
+          <img
+            src="{% static 'assets/LogoVolantineStrong.png' %}"
+            alt="Logo Volantines Strong"
+            class="LogoVolantineStrong"
+          >
+        </span>
 
-  <div class="login-card">
-
-    <div class="admin-brand">
-      <span class="admin-logo">
-        <img
-          src="static/assets/LogoVolantineStrong.png"
-          alt="Logo Volantines Strong"
-          class="LogoVolantineStrong"
-        >
-      </span>
-
-      <span class="admin-brand-name">
-        VOLANTINES <span class="admin-red">STRONG</span>
-        <small>TRADICIÓN · DISEÑO · COMPETICIÓN</small>
-      </span>
-    </div>
-
-    <div class="admin-eyebrow" style="margin-top:38px;">
-      ÁREA PRIVADA / 01
-    </div>
-
-    <h1 class="login-title">
-      Panel de<br>
-      <span class="admin-red">administración.</span>
-    </h1>
-
-    <p class="login-subtitle">
-      Acceso exclusivo para gestionar el catálogo,
-      el inventario y los pedidos de Volantines Strong.
-    </p>
-
-    <form id="login-form">
-
-      <div class="admin-field" style="margin-bottom:17px;">
-        <label for="admin-email">
-          Correo administrador
-        </label>
-
-        <input
-          class="admin-input"
-          type="email"
-          id="admin-email"
-          placeholder="correo@ejemplo.cl"
-          autocomplete="username"
-          required
-        >
+        <span class="admin-brand-name">
+          VOLANTINES <span class="admin-red">STRONG</span>
+          <small>TRADICIÓN · DISEÑO · COMPETICIÓN</small>
+        </span>
       </div>
 
-      <div class="admin-field" style="margin-bottom:20px;">
-        <label for="admin-password">
-          Contraseña
-        </label>
-
-        <input
-          class="admin-input"
-          type="password"
-          id="admin-password"
-          placeholder="Ingresa tu contraseña"
-          autocomplete="current-password"
-          required
-        >
+      <div class="admin-eyebrow" style="margin-top:38px;">
+        ÁREA PRIVADA / 01
       </div>
 
-      <button type="submit" class="admin-btn login-submit">
-        Ingresar al panel ↗
-      </button>
+      <h1 class="login-title">
+        Panel de<br>
+        <span class="admin-red">administración.</span>
+      </h1>
 
-    </form>
+      <p class="login-subtitle">
+        Acceso exclusivo para gestionar el catálogo,
+        el inventario y los pedidos de Volantines Strong.
+      </p>
+
+      {% if messages %}
+      {% for message in messages %}
+      <p class="admin-hint admin-red">{{ message }}</p>
+      {% endfor %}
+      {% endif %}
+
+      <form id="login-form" method="post" action="{% url 'admin_panel:login' %}">
+          {% csrf_token %}
+
+        <div class="admin-field" style="margin-bottom:17px;">
+          <label for="admin-email">
+            Correo administrador
+          </label>
+
+          <input
+            class="admin-input"
+            type="email"
+            id="admin-email"
+            name="admin_email"
+            placeholder="correo@ejemplo.cl"
+            autocomplete="username"
+            required
+          >
+        </div>
+
+        <div class="admin-field" style="margin-bottom:20px;">
+          <label for="admin-password">
+            Contraseña
+          </label>
+
+          <input
+            class="admin-input"
+            type="password"
+            id="admin-password"
+            name="admin_password"
+            placeholder="Ingresa tu contraseña"
+            autocomplete="current-password"
+            required
+          >
+        </div>
+
+        <button type="submit" class="admin-btn login-submit">
+          Ingresar al panel ↗
+        </button>
+
+      </form>
+    </div>
   </div>
-</div>
+
+  <!-- ==========================================
+       DASHBOARD ADMINISTRADOR
+       ========================================== -->
+{% endblock %}

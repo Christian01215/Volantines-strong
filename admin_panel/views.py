@@ -1,182 +1,201 @@
-import json
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_http_methods
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
+import mimetypes
+from pathlib import Path
+
 import supabase
-import os
+from django.conf import settings
+from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import User
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+from django.core.mail import send_mail
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils.text import slugify
+from django.views.decorators.http import require_http_methods, require_POST
 
-# Supabase client initialization
-supabase_url = os.environ.get("SUPABASE_URL") or ""
-supabase_key = os.environ.get("SUPABASE_KEY") or ""
-if supabase_url and supabase_key:
-    sb = supabase.create_client(supabase_url, supabase_key)
-else:
-    sb = None
+from orders.models import Order
+from products.models import Category, Product, ProductImage
 
 
-def require_supabase(view_func):
-    @login_required
-    def wrapper(request, *args, **kwargs):
-        if not sb:
-            messages.error(request, "Configuración de Supabase no disponible.")
-            return redirect("admin_panel:login")
-        return view_func(request, *args, **kwargs)
-    return wrapper
+def _upload_image(file, product_pk, gallery=False):
+    """Sube imágenes al bucket de productos, con fallback al storage local."""
+    content = file.read()
+    filename = Path(file.name).name
+    mimetype = file.content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    suffix = "gallery" if gallery else "main"
+    path = f"products/{product_pk}/{suffix}/{filename}"
+
+    if settings.SUPABASE_URL and settings.SUPABASE_KEY and settings.SUPABASE_STORAGE_BUCKET:
+        try:
+            client = supabase.create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+            bucket = client.storage.from_(settings.SUPABASE_STORAGE_BUCKET)
+            bucket.upload(path, content, {"content-type": mimetype})
+            return bucket.get_public_url(path)
+        except Exception:
+            pass
+
+    local_path = default_storage.save(path, ContentFile(content))
+    return default_storage.url(local_path)
 
 
 @require_http_methods(["GET", "POST"])
 def login_view(request):
+    if request.user.is_authenticated and request.user.is_staff:
+        return redirect("admin_panel:dashboard")
+
     if request.method == "POST":
-        email = request.POST.get("admin_email")
-        password = request.POST.get("admin_password")
-        # Simple hardcoded admin for demo - in production use Django auth
-        if email == "admin@volantinesstrong.cl" and password == "admin123":
-            request.session["admin_logged_in"] = True
+        email = request.POST.get("admin_email", "").strip()
+        password = request.POST.get("admin_password", "")
+
+        user = authenticate(request, username=email, password=password)
+        if user is None:
+            candidate = User.objects.filter(email__iexact=email).first()
+            if candidate:
+                user = authenticate(request, username=candidate.username, password=password)
+
+        if user is not None and user.is_staff:
+            login(request, user)
             return redirect("admin_panel:dashboard")
-        else:
-            messages.error(request, "Credenciales incorrectas.")
+
+        messages.error(request, "Credenciales incorrectas o usuario sin acceso al panel.")
+
     return render(request, "admin_panel/login.html")
 
 
-@login_required
+@require_POST
 def logout_view(request):
-    request.session.pop("admin_logged_in", None)
+    logout(request)
     return redirect("admin_panel:login")
 
 
-@login_required
+@staff_member_required(login_url="admin_panel:login")
 def dashboard(request):
-    from .models import Order, Product
-    orders = Order.objects.all().order_by("-" + "created_at")[:10]
-    products = Product.objects.all()[:10]
-    return render(request, "admin_panel/dashboard.html", {"orders": orders, "products": products})
+    edit_id = request.GET.get("edit")
+    editing_product = None
+    if edit_id and edit_id.isdigit():
+        editing_product = Product.objects.filter(pk=edit_id).first()
+
+    return render(request, "admin_panel/dashboard.html", {
+        "categories": Category.objects.all().order_by("order", "name"),
+        "products": Product.objects.select_related("category").prefetch_related("gallery").all(),
+        "orders": Order.objects.all().order_by("-created_at")[:20],
+        "status_choices": Order.STATUS_CHOICES,
+        "editing_product": editing_product,
+    })
 
 
-# --- Product CRUD ---
-
-@login_required
-def product_list(request):
-    from .models import Product
-    products = Product.objects.all().order_by("-" + "created_at")
-    return render(request, "admin_panel/product_list.html", {"products": products})
-
-
-@login_required
-@require_http_methods(["GET", "POST"])
-def product_create(request):
-    if request.method == "POST":
-        name = request.POST.get("prod_name")
-        category_id = request.POST.get("prod_category")
-        price = request.POST.get("prod_price")
-        stock = request.POST.get("prod_stock")
-        specs = request.POST.get("prod_specs")
-        image_file = request.FILES.get("prod_image_file")
-        
-        from products.models import Category
-        category = get_object_or_404(Category, pk=category_id) if category_id else None
-        
-        product = Product.objects.create(
-            name=name,
-            category=category,
-            price=int(price) if price else 0,
-            stock=int(stock) if stock else 0,
-            specs=specs,
-        )
-        
-        # Upload image to Supabase Storage if available
-        if image_file and sb:
-            file_path = f"products/{product.pk}/{image_file.name}"
-            try:
-                sb.storage.from_("product-images").upload(file_path, image_file.read())
-                # Store the path in the product model
-                product.image = file_path
-                product.save(update_fields=["image"])
-            except Exception as e:
-                messages.warning(request, f"Producto creado, pero error al subir imagen: {e}")
-        elif image_file:
-            # Save with FileSystemStorage
-            path = default_storage.save(f"media/{image_file.name}", image_file)
-            product.image = path
-            product.save(update_fields=["image"])
-        
-        messages.success(request, f"Producto '{name}' creado exitosamente.")
-        return redirect("admin_panel:product_list")
-    
-    from products.models import Category
-    categories = Category.objects.all().order_by("name")
-    return render(request, "admin_panel/product_form.html", {"categories": categories, "action": "Crear"})
-
-
-@login_required
-@require_http_methods(["GET", "POST"])
+@staff_member_required(login_url="admin_panel:login")
 def product_edit(request, product_id):
-    from products.models import Category
-    product = get_object_or_404(Product, pk=product_id)
-    categories = Category.objects.all().order_by("name")
-    
-    if request.method == "POST":
-        name = request.POST.get("prod_name")
-        category_id = request.POST.get("prod_category")
-        price = request.POST.get("prod_price")
-        stock = request.POST.get("prod_stock")
-        specs = request.POST.get("prod_specs")
-        image_file = request.FILES.get("prod_image_file")
-        
-        if name:
-            product.name = name
-        if category_id:
-            product.category = get_object_or_404(Category, pk=category_id)
-        if price:
-            product.price = int(price)
-        if stock:
-            product.stock = int(stock)
-        if specs:
-            product.specs = specs
-        
-        # Upload new image if provided
-        if image_file:
-            if sb:
-                file_path = f"products/{product.pk}/{image_file.name}"
-                try:
-                    sb.storage.from_("product-images").upload(file_path, image_file.read())
-                    product.image = file_path
-                except Exception as e:
-                    messages.warning(request, f"Error al subir imagen: {e}")
-            else:
-                path = default_storage.save(f"media/{image_file.name}", image_file)
-                product.image = path
-        
-        product.save(update_fields=["name", "category", "price", "stock", "specs", "image"])
-        messages.success(request, f"Producto '{name}' actualizado exitosamente.")
-        return redirect("admin_panel:product_list")
-    
-    return render(request, "admin_panel/product_form.html", {"product": product, "categories": categories, "action": "Editar"})
+    return redirect(f"{reverse('admin_panel:dashboard')}?edit={product_id}")
 
 
-# --- Order management ---
-
-@login_required
-def order_list(request):
-    from .models import Order
-    orders = Order.objects.all().order_by("-" + "created_at")
-    return render(request, "admin_panel/order_list.html", {"orders": orders})
-
-
-@login_required
+@staff_member_required(login_url="admin_panel:login")
 @require_http_methods(["GET", "POST"])
+def product_save(request):
+    if request.method != "POST":
+        return redirect("admin_panel:dashboard")
+
+    product_id = request.POST.get("prod_id")
+    product = get_object_or_404(Product, pk=product_id) if product_id else Product()
+
+    name = request.POST.get("prod_name", "").strip()
+    if not name:
+        messages.error(request, "El nombre del producto es obligatorio.")
+        return redirect("admin_panel:dashboard")
+
+    category_id = request.POST.get("prod_category", "").strip()
+    category = Category.objects.filter(pk=category_id).first() if category_id.isdigit() else None
+    if category is None and category_id:
+        category, _ = Category.objects.get_or_create(
+            name=category_id,
+            defaults={"slug": slugify(category_id)},
+        )
+    if category is None:
+        category = Category.objects.first()
+    if category is None:
+        category = Category.objects.create(name="General", slug="general")
+
+    try:
+        product.price = int(request.POST.get("prod_price") or 0)
+        product.stock = int(request.POST.get("prod_stock") or 0)
+    except ValueError:
+        messages.error(request, "Precio y stock deben ser números.")
+        return redirect("admin_panel:dashboard")
+
+    product.name = name
+    product.category = category
+    product.specs = request.POST.get("prod_specs", "")
+    product.description = request.POST.get("prod_desc", "")
+    product.save()
+
+    image_file = request.FILES.get("prod_image_file")
+    if image_file:
+        product.image = _upload_image(image_file, product.pk)
+        product.save(update_fields=["image"])
+
+    gallery_files = request.FILES.getlist("prod_gallery_files")[:4]
+    if gallery_files:
+        ProductImage.objects.filter(product=product).delete()
+        for index, gallery_file in enumerate(gallery_files):
+            ProductImage.objects.create(
+                product=product,
+                image=_upload_image(gallery_file, product.pk, gallery=True),
+                order=index,
+            )
+
+    messages.success(request, f"Producto '{product.name}' guardado correctamente.")
+    return redirect("admin_panel:dashboard")
+
+
+@staff_member_required(login_url="admin_panel:login")
+@require_POST
+def product_delete(request, product_id):
+    product = get_object_or_404(Product, pk=product_id)
+    name = product.name
+    product.delete()
+    messages.success(request, f"Producto '{name}' eliminado.")
+    return JsonResponse({"ok": True})
+
+
+@staff_member_required(login_url="admin_panel:login")
+@require_POST
 def order_status_update(request, order_code):
-    from .models import Order
     order = get_object_or_404(Order, code=order_code)
-    if request.method == "POST":
-        new_status = request.POST.get("status")
-        valid_choices = dict(Order.STATUS_CHOICES).keys()
-        if new_status in valid_choices:
-            order.status = new_status
-            order.save(update_fields=["status"])
-            messages.success(request, f"Estado actualizado a {order.get_status_display()}")
-        else:
-            messages.error(request, "Estado inválido.")
-    return redirect("admin_panel:order_list")
+    new_status = request.POST.get("status")
+    if new_status not in dict(Order.STATUS_CHOICES):
+        return JsonResponse({"ok": False, "message": "Estado inválido"}, status=400)
+    order.status = new_status
+    order.save(update_fields=["status"])
+    return JsonResponse({"ok": True, "status": order.get_status_display()})
+
+
+@staff_member_required(login_url="admin_panel:login")
+@require_POST
+def order_notify(request, order_code):
+    order = get_object_or_404(Order, code=order_code)
+    if not order.customer_email:
+        return JsonResponse({"ok": False, "message": "El pedido no tiene correo"}, status=400)
+
+    send_mail(
+        subject=f"Actualización de tu pedido {order.code} — Volantines Strong",
+        message=(
+            f"Hola {order.customer_name},\n\n"
+            f"Tu pedido {order.code} está: {order.get_status_display()}.\n\n"
+            "Gracias por comprar en Volantines Strong."
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[order.customer_email],
+        fail_silently=False,
+    )
+    return JsonResponse({"ok": True})
+
+
+@staff_member_required(login_url="admin_panel:login")
+@require_POST
+def order_delete(request, order_code):
+    order = get_object_or_404(Order, code=order_code)
+    order.delete()
+    return JsonResponse({"ok": True})

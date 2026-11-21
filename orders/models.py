@@ -39,7 +39,15 @@ class Order(models.Model):
     pickup_slot = models.CharField(max_length=20, blank=True, verbose_name="Bloque horario")
     
     total = models.IntegerField(verbose_name="Total CLP")
-    
+    payment_method = models.CharField(max_length=30, blank=True, verbose_name="Medio de pago")
+
+    delivery_region = models.CharField(max_length=100, blank=True, verbose_name="Región")
+    delivery_commune = models.CharField(max_length=100, blank=True, verbose_name="Comuna")
+    delivery_address = models.TextField(blank=True, verbose_name="Dirección de entrega")
+
+    receipt_url = models.URLField(blank=True, verbose_name="URL del comprobante")
+    receipt_name = models.CharField(max_length=255, blank=True, verbose_name="Nombre del comprobante")
+
     status = models.CharField(
         max_length=20,
         choices=ORDER_STATUS_CHOICES,
@@ -60,6 +68,10 @@ class Order(models.Model):
     def __str__(self):
         return f"Orden {self.code} - {self.get_status_display()}"
     
+    @property
+    def total_display(self):
+        return f"${self.total:,}".replace(",", ".")
+
     @property
     def is_ready_for_pickup(self):
         return self.status == "listo_para_retiro"
