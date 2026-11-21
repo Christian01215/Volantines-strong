@@ -56,7 +56,9 @@ def send_owner_notification(order, receipt_url, receipt_name, receipt_content, r
         lines.append(f"- {item.product.name} x{item.quantity} — ${item.line_total:,}".replace(",", "."))
     lines.append("")
     lines.append(f"Total: ${order.total:,}".replace(",", "."))
-    lines.append(f"Medio de pago informado: {order.get_payment_method_display() if hasattr(order, 'get_payment_method_display') else order.payment_method}")
+    lines.append(f"Medio de pago informado: {order.payment_method or 'transferencia'}")
+    if order.payment_method == "transferencia":
+        lines.append("Datos de transferencia: Banco Estado · Cuenta Vista · Titular Volantines Strong · RUT 12.345.678-9 · Cuenta 12345678901")
     lines.append(f"Comprobante: {receipt_url}")
 
     text_body = "\n".join(lines)

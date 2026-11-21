@@ -26,6 +26,7 @@ class Product(models.Model):
     specs = models.TextField(blank=True, verbose_name="Ficha técnica")
     description = models.TextField(blank=True, verbose_name="Descripción")
     image = models.ImageField(upload_to="products/", blank=True, null=True, verbose_name="Imagen principal")
+    image_url = models.URLField(blank=True, verbose_name="URL remota de la imagen")
     is_active = models.BooleanField(default=True, verbose_name="Activo")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Creado en")
 
@@ -49,7 +50,8 @@ class Product(models.Model):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="gallery", verbose_name="Producto")
-    image = models.ImageField(upload_to="products/gallery/", verbose_name="Imagen")
+    image = models.ImageField(upload_to="products/gallery/", blank=True, null=True, verbose_name="Imagen")
+    image_url = models.URLField(blank=True, verbose_name="URL remota de la imagen")
     order = models.PositiveIntegerField(default=0, verbose_name="Orden")
 
     class Meta:

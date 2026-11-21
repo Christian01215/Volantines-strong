@@ -318,12 +318,16 @@
                 data-stock="{{ product.stock }}"
                 data-specs="{{ product.specs }}"
                 data-description="{{ product.description }}"
-                data-image="{% if product.image %}{{ product.image.url }}{% endif %}"
+                data-image="{% if product.image_url %}{{ product.image_url }}{% elif product.image %}{{ product.image.url }}{% endif %}"
                 data-edit-url="{% url 'admin_panel:product_edit' product.pk %}"
                 data-delete-url="{% url 'admin_panel:product_delete' product.pk %}"
               >
                 <td>
-                  {% if product.image %}<img src="{{ product.image.url }}" alt="{{ product.name }}" width="42" height="42" style="object-fit:contain;border-radius:8px;margin-right:8px;">{% endif %}
+                  {% if product.image_url %}
+                  <img src="{{ product.image_url }}" alt="{{ product.name }}" width="42" height="42" style="object-fit:contain;border-radius:8px;margin-right:8px;">
+                  {% elif product.image %}
+                  <img src="{{ product.image.url }}" alt="{{ product.name }}" width="42" height="42" style="object-fit:contain;border-radius:8px;margin-right:8px;">
+                  {% endif %}
                   {{ product.name }}
                 </td>
                 <td>{{ product.category.name }}</td>

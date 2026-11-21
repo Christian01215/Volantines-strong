@@ -21,24 +21,29 @@ from products.models import Category, Product, ProductImage
 
 
 def _upload_image(file, product_pk, gallery=False):
-    """Sube imágenes al bucket de productos, con fallback al storage local."""
+    """Sube al bucket de productos.
+
+    Devuelve ``(url_remota, ruta_local, error)``. Nunca guarda una URL dentro
+    de un ImageField: eso provocaba rutas tipo /media/media/products/...
+    """
     content = file.read()
     filename = Path(file.name).name
     mimetype = file.content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
     suffix = "gallery" if gallery else "main"
     path = f"products/{product_pk}/{suffix}/{filename}"
+    error = None
 
     if settings.SUPABASE_URL and settings.SUPABASE_KEY and settings.SUPABASE_STORAGE_BUCKET:
         try:
             client = supabase.create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
             bucket = client.storage.from_(settings.SUPABASE_STORAGE_BUCKET)
             bucket.upload(path, content, {"content-type": mimetype})
-            return bucket.get_public_url(path)
-        except Exception:
-            pass
+            return bucket.get_public_url(path), None, None
+        except Exception as exc:
+            error = str(exc)
 
     local_path = default_storage.save(path, ContentFile(content))
-    return default_storage.url(local_path)
+    return None, local_path, error
 
 
 @require_http_methods(["GET", "POST"])
@@ -47,14 +52,16 @@ def login_view(request):
         return redirect("admin_panel:dashboard")
 
     if request.method == "POST":
-        email = request.POST.get("admin_email", "").strip()
+        identifier = request.POST.get("admin_identifier", "").strip()
         password = request.POST.get("admin_password", "")
 
-        user = authenticate(request, username=email, password=password)
-        if user is None:
-            candidate = User.objects.filter(email__iexact=email).first()
-            if candidate:
+        user = authenticate(request, username=identifier, password=password)
+        if user is None and identifier:
+            # Puede haber varios usuarios con el mismo correo: probamos cada uno.
+            for candidate in User.objects.filter(email__iexact=identifier):
                 user = authenticate(request, username=candidate.username, password=password)
+                if user is not None:
+                    break
 
         if user is not None and user.is_staff:
             login(request, user)
@@ -133,18 +140,33 @@ def product_save(request):
 
     image_file = request.FILES.get("prod_image_file")
     if image_file:
-        product.image = _upload_image(image_file, product.pk)
-        product.save(update_fields=["image"])
+        remote_url, local_path, error = _upload_image(image_file, product.pk)
+        product.image_url = remote_url or ""
+        product.image = local_path or None
+        product.save(update_fields=["image", "image_url"])
+        if error:
+            messages.warning(
+                request,
+                f"No se pudo subir la imagen al bucket '{settings.SUPABASE_STORAGE_BUCKET}': {error}. "
+                "Se guardó en almacenamiento local.",
+            )
 
     gallery_files = request.FILES.getlist("prod_gallery_files")[:4]
     if gallery_files:
         ProductImage.objects.filter(product=product).delete()
         for index, gallery_file in enumerate(gallery_files):
+            remote_url, local_path, error = _upload_image(gallery_file, product.pk, gallery=True)
             ProductImage.objects.create(
                 product=product,
-                image=_upload_image(gallery_file, product.pk, gallery=True),
+                image=local_path or None,
+                image_url=remote_url or "",
                 order=index,
             )
+            if error:
+                messages.warning(
+                    request,
+                    f"Una imagen de galería no se subió a Supabase: {error}. Se guardó localmente.",
+                )
 
     messages.success(request, f"Producto '{product.name}' guardado correctamente.")
     return redirect("admin_panel:dashboard")
