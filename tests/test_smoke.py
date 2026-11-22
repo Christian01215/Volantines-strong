@@ -17,6 +17,11 @@ class PublicUrlsSmokeTests(TestCase):
             stock=5,
         )
 
+    def test_health(self):
+        response = self.client.get(reverse("health"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "ok"})
+
     def test_catalog(self):
         response = self.client.get(reverse("products:catalog"))
         self.assertEqual(response.status_code, 200)

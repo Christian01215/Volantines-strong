@@ -199,6 +199,50 @@ python manage.py loaddata categories
 
 ---
 
+## Preparación para Vercel
+
+El proyecto ya tiene lo que Vercel necesita para detectar Django de forma automática:
+
+- `manage.py` en la raíz y `WSGI_APPLICATION` apuntando a `config.wsgi.application`.
+- `config/wsgi.py` expone `application` y `app`.
+- `STATIC_ROOT` configurado: Vercel ejecuta `collectstatic` y sirve los archivos por CDN.
+- `vercel.json` con `maxDuration: 60` para la función de Python.
+- `/health` responde `{"status": "ok"}` para smoke checks.
+
+CLI instalada: `vercel --version` → 66.6.0.
+
+### Token
+
+El token de Vercel **no se sube a Git**. En tu `.env` local dejé placeholders comentados:
+
+```text
+# VERCEL_TOKEN=
+# VERCEL_ORG_ID=
+# VERCEL_PROJECT_ID=
+```
+
+Descomentá `VERCEL_TOKEN` y pegá tu token (https://vercel.com/account/tokens). La CLI también lo acepta como variable de entorno:
+
+```powershell
+$env:VERCEL_TOKEN = "tu-token"
+```
+
+Luego:
+
+```powershell
+vercel link          # Vincula el repo y guarda .vercel/project.json (ignorado por Git)
+vercel env pull      # Baja las variables a .env.local (ignorado por Git)
+vercel deploy        # O `vercel --prod` para producción
+```
+
+`config/settings.py` carga `.env.local` antes que `.env`, así que las variables bajadas desde Vercel tienen prioridad en local.
+
+### Variables a configurar en el proyecto de Vercel
+
+Además del token (que es sólo para la CLI), cargá en **Project Settings → Environment Variables**: `SECRET_KEY`, `DEBUG=False`, `ALLOWED_HOSTS`, `DATABASE_URL` (Supabase), `SUPABASE_URL`, `SUPABASE_KEY`, buckets, `ADMIN_EMAIL`, `DEFAULT_FROM_EMAIL`, `RESEND_API_KEY` y los datos de negocio (`WHATSAPP_NUMBER`, `BANK_*`, `BUSINESS_ADDRESS`).
+
+---
+
 ## Estructura
 
 ```text
@@ -213,12 +257,14 @@ BASE/
 ├── templates/          # base, storefront, products, cart, orders, admin_panel
 ├── tests/              # 20 pruebas smoke/integración
 ├── .env.example
-└── requirements.txt
+├── requirements.txt
+└── vercel.json           # configuración de la función Python
+
 ```
 
 ## Seguridad
 
-- `.env`, `.venv/`, `db.sqlite3`, `media/` y `staticfiles/` están en `.gitignore`.
+- `.env`, `.env.local`, `.vercel/`, `.venv/`, `db.sqlite3`, `media/` y `staticfiles/` están en `.gitignore`.
 - Nunca compartas `.env` ni lo pegues en un chat.
 - Si alguna clave llegó a un commit anterior, rotala antes de publicar.
 

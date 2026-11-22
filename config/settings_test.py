@@ -12,6 +12,13 @@ DATABASES = {
     }
 }
 
+# WhiteNoise necesita el directorio de staticfiles, que no se genera en tests.
+MIDDLEWARE = [
+    middleware
+    for middleware in MIDDLEWARE
+    if middleware != 'whitenoise.middleware.WhiteNoiseMiddleware'
+]
+
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 SUPABASE_URL = ''
 SUPABASE_KEY = ''

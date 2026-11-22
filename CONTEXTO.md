@@ -265,3 +265,15 @@ El checkout creates session dentro de `transaction.atomic`; al fallar, el rollba
 2. Completar `BANK_RUT`, `BANK_ACCOUNT` y `WHATSAPP_NUMBER` en `.env`.
 3. Crear el bucket `custom-designs` en Supabase Storage (si Supabase está activo).
 4. Despliegue diferido (Fase 5). Ya existe el commit `1980a17` con todas las fases 1–4.
+
+## 11. Preparación Vercel — 22/11/2026
+
+- Servidor local cerrado. Git al día con `origin/main`; no había cambios que subir.
+- Vercel CLI instalada: **66.6.0** (`npm install -g vercel@latest`).
+- `vercel.json` creado con `maxDuration: 60` apuntando a `config/wsgi.py`.
+- `config/wsgi.py` expone `application` y el alias `app`.
+- `config/settings.py` carga `.env.local` (de `vercel env pull`) antes que `.env` e incluye `WhiteNoiseMiddleware`.
+- Endpoint `/health` agregado para smoke checks.
+- `.gitignore` incluye `.env.local` y `.vercel/`.
+- `.env.example` documenta `VERCEL_TOKEN`, `VERCEL_ORG_ID` y `VERCEL_PROJECT_ID`; el `.env` local tiene placeholders **comentados** para no sobrescribir un token real.
+- Falta que el usuario pegue su token y ejecute `vercel link` / `vercel env pull` / `vercel deploy`. Las variables de producción se cargan en el dashboard de Vercel.
