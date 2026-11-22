@@ -83,6 +83,24 @@ class CheckoutFlowTests(TestCase):
         self.assertEqual(mail.outbox[1].to, ["ana@example.com"])
         self.assertIn(order.code, mail.outbox[1].subject)
 
+    def test_customer_confirmation_can_be_disabled(self):
+        mail.outbox = []
+        self._fill_cart(1)
+
+        with self.settings(SEND_CUSTOMER_CONFIRMATION=False):
+            response = self.client.post(
+                reverse("orders:checkout"),
+                self._checkout_payload(),
+                HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            )
+
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+        self.assertFalse(payload["customer_email_sent"])
+        self.assertTrue(Order.objects.filter(code=payload["code"]).exists())
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["ctorresj@utem.cl"])
+
     def test_checkout_rejects_empty_cart(self):
         response = self.client.post(
             reverse("orders:checkout"),

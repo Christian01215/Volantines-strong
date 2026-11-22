@@ -65,6 +65,11 @@ EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND') or (
     if RESEND_API_KEY
     else 'django.core.mail.backends.console.EmailBackend'
 )
+# Mientras Resend no tenga un dominio verificado, sólo puede enviar al correo
+# de la cuenta. Esta bandera evita intentos fallidos de confirmación al cliente.
+SEND_CUSTOMER_CONFIRMATION = os.environ.get(
+    'SEND_CUSTOMER_CONFIRMATION', 'True'
+).lower() in ('1', 'true', 'yes', 'on')
 LOGIN_URL = 'admin_panel:login'
 
 

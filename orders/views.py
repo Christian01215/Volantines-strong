@@ -2,6 +2,7 @@ import logging
 import random
 import string
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
@@ -184,10 +185,13 @@ def checkout_submit(request):
         logger.exception("No se pudo enviar el aviso de la orden %s: %s", order.code, exc)
 
     customer_email_sent = False
-    try:
-        customer_email_sent = send_customer_confirmation(order)
-    except Exception as exc:
-        logger.exception("No se pudo confirmar la orden %s al cliente: %s", order.code, exc)
+    if getattr(settings, "SEND_CUSTOMER_CONFIRMATION", True):
+        try:
+            customer_email_sent = send_customer_confirmation(order)
+        except Exception as exc:
+            logger.exception(
+                "No se pudo confirmar la orden %s al cliente: %s", order.code, exc
+            )
 
     message = (
         f"Pedido {order.code} registrado. Revisaremos tu comprobante."

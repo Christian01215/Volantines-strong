@@ -60,6 +60,7 @@ Copiá `.env.example` como `.env` y completá:
 | `DEFAULT_FROM_EMAIL` | Remitente verificado en Resend. |
 | `RESEND_API_KEY` | Key de Resend. Sin ella se usa el backend de consola. |
 | `EMAIL_BACKEND` | Opcional. Fuerza un backend manualmente. |
+| `SEND_CUSTOMER_CONFIRMATION` | Envía confirmación al comprador. `True` por defecto; temporalmente `False` en Vercel por la limitación de Resend. |
 
 > Si `DATABASE_URL` está vacía se usa `db.sqlite3`. Eso es ideal para probar en un PC sin IPv6 (algunas redes no pueden llegar al host de Supabase, que sólo resolvía AAAA).
 
@@ -105,7 +106,7 @@ Además, los cambios de estado a **Pago Confirmado**, **Preparando**, **Listo pa
 
 Sin la key, los correos se imprimen en la terminal (backend consola), útil para desarrollo.
 
-En el plan gratuito de Resend, `onboarding@resend.dev` sólo envía al correo de la cuenta: verificá tu propio remitente en `DEFAULT_FROM_EMAIL`.
+En el plan gratuito de Resend, `onboarding@resend.dev` sólo envía al correo de la cuenta: verificá tu propio remitente en `DEFAULT_FROM_EMAIL`. Mientras eso no ocurra, Vercel tiene `SEND_CUSTOMER_CONFIRMATION=False` para no intentar envíos fallidos a los clientes. El aviso al administrador sigue intentándose, pero con `ADMIN_EMAIL=ctorresj@utem.cl` también será rechazado por Resend. Cuando verifiques el dominio, volvé a poner `SEND_CUSTOMER_CONFIRMATION=True`.
 
 ---
 
@@ -261,7 +262,7 @@ BASE/
 ├── refvisual/          # fuente visual única (no editar)
 ├── static/             # css y js reconstruidos
 ├── templates/          # base, storefront, products, cart, orders, admin_panel
-├── tests/              # 28 pruebas smoke/integración
+├── tests/              # 29 pruebas smoke/integración
 ├── .env.example
 ├── requirements.txt
 └── vercel.json           # configuración de la función Python

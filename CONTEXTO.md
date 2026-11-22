@@ -254,7 +254,7 @@ El checkout creates session dentro de `transaction.atomic`; al fallar, el rollba
 - `manage.py check` → OK.
 - `manage.py makemigrations --check --dry-run` → "No changes detected".
 - `manage.py migrate` → todas aplicadas en Supabase Postgres.
-- `manage.py test tests` → **20 pruebas OK** (3.9 s); tras los fixes finales, **28 pruebas OK**.
+- `manage.py test tests` → **20 pruebas OK** (3.9 s); tras los fixes finales, **29 pruebas OK**.
 - `loaddata categories` → 5 categorías oficiales en BD.
 - Smoke HTTP con `runserver`: `/`, `/cart/api/`, `/admin-panel/login/`, `/producto/<slug>/`, `/cart/carrito/` → 200.
 - BD real: `DB_ENGINE=postgresql`, `DATABASE_URL_SET=True`; `ADMIN_EMAIL=ctorresj@utem.cl`, `RESEND_CONFIGURED=False` (backend consola local).
@@ -292,3 +292,12 @@ El checkout creates session dentro de `transaction.atomic`; al fallar, el rollba
 - Commits: `d8c0e3f` (fixes) y `d6d42c0` (buildCommand), ambos en `origin/main`.
 - Despliegue producción: `dpl_ELdHu5mZHdQe4MyT96551gDiRJk9`, URL final https://volantines-strong.vercel.app. Smoke con `vercel curl`: `/health`, `/`, `/cart/api/` y `/admin-panel/login/` → 200.
 - Pendiente de operación: verificar dominio de remitente en Resend y revisar que los tres buckets públicos existan.
+
+## 13. Limitación temporal de Resend — 22/11/2026
+
+- La cuenta de Resend fue creada con `chjj01215@gmail.com` mediante GitHub.
+- Con `onboarding@resend.dev`, Resend 403 rechaza cualquier destinatario que no sea esa cuenta; por eso no llegan los avisos a `ctorresj@utem.cl` ni las confirmaciones a clientes.
+- Decisión del usuario: mantener `ADMIN_EMAIL=ctorresj@utem.cl` y desactivar temporalmente la confirmación al cliente.
+- Implementación: `SEND_CUSTOMER_CONFIRMATION` en `settings.py` (default `True`) y condición en `checkout_submit()`; Vercel queda con `SEND_CUSTOMER_CONFIRMATION=False`.
+- El aviso al administrador se sigue intentando para que empiece a funcionar sin cambios cuando se verifique un dominio.
+- Para restaurar el flujo completo: verificar dominio propio, actualizar `DEFAULT_FROM_EMAIL` a `Volantines Strong <pedidos@dominio.cl>` y poner `SEND_CUSTOMER_CONFIRMATION=True`.
