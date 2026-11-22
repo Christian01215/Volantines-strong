@@ -208,7 +208,8 @@ El proyecto ya tiene lo que Vercel necesita para detectar Django de forma autom�
 
 - `manage.py` en la raíz y `WSGI_APPLICATION` apuntando a `config.wsgi.application`.
 - `config/wsgi.py` expone `application` y `app`.
-- `STATIC_ROOT` configurado: Vercel ejecuta `collectstatic` y sirve los archivos por CDN.
+- `STATIC_ROOT` configurado: Vercel sirve los archivos por CDN.
+- `vercel.json` con `buildCommand` que ejecuta `migrate` y `collectstatic` (Vercel tiene los secretos de `DATABASE_URL` durante el build).
 - `vercel.json` con `maxDuration: 60` para la función de Python.
 - `/health` responde `{"status": "ok"}` para smoke checks.
 
@@ -244,7 +245,7 @@ vercel deploy        # O `vercel --prod` para producción
 
 Además del token (que es sólo para la CLI), cargá en **Project Settings → Environment Variables**: `SECRET_KEY`, `DEBUG=False`, `ALLOWED_HOSTS`, `DATABASE_URL` (Supabase), `SUPABASE_URL`, `SUPABASE_KEY` (service_role), buckets, `ADMIN_EMAIL`, `DEFAULT_FROM_EMAIL`, `RESEND_API_KEY` y los datos de negocio (`WHATSAPP_NUMBER`, `BANK_*`, `BUSINESS_ADDRESS`).
 
-No definas `EMAIL_BACKEND`: el código elige Resend cuando hay `RESEND_API_KEY` y consola cuando no la hay. `ALLOW_LOCAL_STORAGE_FALLBACK` debe quedar en `False` (o sin definir, porque `DEBUG=False`). Usá la cadena **Transaction pooler** de Supabase (`puerto 6543`) en `DATABASE_URL`; el pooler es compatible con funciones serverless. Los buckets `product-images`, `payment-receipts` y `custom-designs` deben existir y ser públicos. Después de publicar, aplicá las migraciones con `vercel env pull && python manage.py migrate`.
+No definas `EMAIL_BACKEND`: el código elige Resend cuando hay `RESEND_API_KEY` y consola cuando no la hay. `ALLOW_LOCAL_STORAGE_FALLBACK` debe quedar en `False` (o sin definir, porque `DEBUG=False`). Usá la cadena **Transaction pooler** de Supabase (`puerto 6543`) en `DATABASE_URL`; el pooler es compatible con funciones serverless. Los buckets `product-images`, `payment-receipts` y `custom-designs` deben existir y ser públicos. Las migraciones se aplican automáticamente en cada deploy mediante el `buildCommand`.
 
 ---
 
