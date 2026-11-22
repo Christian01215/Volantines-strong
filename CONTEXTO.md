@@ -203,7 +203,7 @@ git ls-tree -r --name-only HEAD | grep -E '^\.env$'   # debe salir vacío
 
 ## 10. Ejecución de fases — 21/11/2026
 
-Estado: **Fases 1 a 4 implementadas y verificadas**. Los cambios de esta sesión aún **no tienen commit**; el último commit sigue siendo `cb6149c`.
+Estado: **Fases 1 a 4 implementadas, verificadas y commiteadas** (`1980a17`). Commit anterior: `cb6149c`.
 
 ### Decisiones nuevas del usuario
 
@@ -264,4 +264,4 @@ El checkout creates session dentro de `transaction.atomic`; al fallar, el rollba
 1. Configurar `RESEND_API_KEY` y verificar `DEFAULT_FROM_EMAIL` para envío real.
 2. Completar `BANK_RUT`, `BANK_ACCOUNT` y `WHATSAPP_NUMBER` en `.env`.
 3. Crear el bucket `custom-designs` en Supabase Storage (si Supabase está activo).
-4. Commit de los cambios y, más adelante, despliegue (Fase 5 diferida).
+4. Despliegue diferido (Fase 5). Ya existe el commit `1980a17` con todas las fases 1–4.
