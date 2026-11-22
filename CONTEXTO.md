@@ -301,3 +301,5 @@ El checkout creates session dentro de `transaction.atomic`; al fallar, el rollba
 - Implementación: `SEND_CUSTOMER_CONFIRMATION` en `settings.py` (default `True`) y condición en `checkout_submit()`; Vercel queda con `SEND_CUSTOMER_CONFIRMATION=False`.
 - El aviso al administrador se sigue intentando para que empiece a funcionar sin cambios cuando se verifique un dominio.
 - Para restaurar el flujo completo: verificar dominio propio, actualizar `DEFAULT_FROM_EMAIL` a `Volantines Strong <pedidos@dominio.cl>` y poner `SEND_CUSTOMER_CONFIRMATION=True`.
+- Implementado en el commit `d6ad8c4` y desplegado en `dpl_Rr11Y1P16ye9AwnRdDA8bNvLTDkP`.
+- Verificación: 29 pruebas OK, smoke en producción `/health`, `/`, `/cart/api/` y `/admin-panel/login/` → 200.
