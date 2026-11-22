@@ -24,7 +24,8 @@
       priceLabel: data.priceLabel || NS.formatCLP(data.price),
       image: data.image || '',
       specs: data.specs || '',
-      stock: Number(data.stock) || 0
+      stock: Number(data.stock) || 0,
+      slug: data.slug || ''
     };
   }
 
@@ -72,6 +73,7 @@
     var desc = NS.byId('modal-desc');
     var specs = NS.byId('modal-specs');
     var wa = NS.byId('modal-wa-btn');
+    var customize = NS.byId('modal-customize-btn');
 
     if (img) img.src = product.image || '';
     if (img) img.alt = product.name;
@@ -86,9 +88,25 @@
     if (desc) desc.textContent = product.specs;
     if (specs) specs.textContent = product.specs || '—';
     if (wa) {
-      wa.href = 'https://wa.me/?text=' + encodeURIComponent(
-        'Hola, quiero consultar por ' + product.name + ' (' + product.category + ')'
-      );
+      var waBase = window.STRONG_WHATSAPP_URL;
+      if (waBase && waBase !== '#') {
+        wa.href = waBase + '?text=' + encodeURIComponent(
+          'Hola, quiero consultar por ' + product.name + ' (' + product.category + ')'
+        );
+      } else {
+        wa.href = '#';
+      }
+    }
+
+    if (customize) {
+      var customizeUrl = (window.STRONG_CART_URLS || {}).customize;
+      var isReel = product.category.toLowerCase().indexOf('carrete') !== -1;
+      if (isReel && customizeUrl && product.slug) {
+        customize.href = customizeUrl.replace('SLUG', product.slug);
+        customize.classList.remove('hidden');
+      } else {
+        customize.classList.add('hidden');
+      }
     }
 
     modal.classList.remove('hidden');

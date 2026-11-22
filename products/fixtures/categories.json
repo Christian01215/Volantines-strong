@@ -1,0 +1,62 @@
+[
+  {
+    "model": "products.category",
+    "pk": 1,
+    "fields": {
+      "name": "Volantines",
+      "slug": "volantines",
+      "is_active": true,
+      "description": "Volantines de competición y recreativos Strong.",
+      "image": "",
+      "order": 1
+    }
+  },
+  {
+    "model": "products.category",
+    "pk": 2,
+    "fields": {
+      "name": "Carretes",
+      "slug": "carretes",
+      "is_active": true,
+      "description": "Carretes de madera Strong, personalizables.",
+      "image": "",
+      "order": 2
+    }
+  },
+  {
+    "model": "products.category",
+    "pk": 3,
+    "fields": {
+      "name": "Hilos",
+      "slug": "hilos",
+      "is_active": true,
+      "description": "Hilos de competición para volantines.",
+      "image": "",
+      "order": 3
+    }
+  },
+  {
+    "model": "products.category",
+    "pk": 4,
+    "fields": {
+      "name": "Accesorios",
+      "slug": "accesorios",
+      "is_active": true,
+      "description": "Accesorios y repuestos Strong.",
+      "image": "",
+      "order": 4
+    }
+  },
+  {
+    "model": "products.category",
+    "pk": 5,
+    "fields": {
+      "name": "Maletas",
+      "slug": "maletas",
+      "is_active": true,
+      "description": "Maletas para transportar tu equipo Strong.",
+      "image": "",
+      "order": 5
+    }
+  }
+]

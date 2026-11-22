@@ -128,10 +128,9 @@
 
           <div id="category-filters" class="category-filters" aria-label="Filtrar por categoría">
             <button type="button" class="cat-btn is-active" data-cat="ALL">Todos</button>
-            <button type="button" class="cat-btn" data-cat="Competencia">Competencia</button>
-            <button type="button" class="cat-btn" data-cat="Recreativos">Recreativos</button>
-            <button type="button" class="cat-btn" data-cat="Hilo">Hilos</button>
-            <button type="button" class="cat-btn" data-cat="Accesorios">Accesorios</button>
+            {% for category in categories %}
+            <button type="button" class="cat-btn" data-cat="{{ category.name }}">{{ category.name }}</button>
+            {% endfor %}
           </div>
         </div>
 

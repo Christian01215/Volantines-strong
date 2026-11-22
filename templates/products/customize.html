@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Personalizar {{ product.name }} | Volantines Strong{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top:130px;padding-bottom:100px;">
+  <div class="eyebrow"><span class="eyebrow-mark"></span> RF-09 / PERSONALIZADOR DE CARRETES</div>
+  <h2 class="text-3xl font-black text-slate-900 mt-2">Diseña tu {{ product.name }}</h2>
+  <p class="text-sm text-slate-600 mt-2 max-w-2xl">
+    Sube una imagen, ajústala con el mouse y descarga el resultado. Al agregarlo al carrito,
+    tu diseño viaja adjunto a la línea del pedido.
+  </p>
+
+  <div class="grid lg:grid-cols-[1fr_340px] gap-8 mt-8">
+    <section class="bg-white border border-slate-200 rounded-2xl p-4">
+      <canvas
+        id="design-canvas"
+        width="900"
+        height="900"
+        class="w-full max-w-[720px] mx-auto block rounded-xl bg-slate-100 cursor-move touch-none"
+        aria-label="Vista previa del carrete personalizado"
+      ></canvas>
+      <p class="text-center text-[11px] text-slate-500 mt-3">
+        Arrastra la imagen sobre el carrete para reposicionarla.
+      </p>
+    </section>
+
+    <aside class="bg-white border border-slate-200 rounded-2xl p-6 space-y-5">
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-2" for="design-file">
+          1. Sube tu imagen
+        </label>
+        <input
+          id="design-file"
+          class="w-full text-xs bg-white border border-slate-300 rounded-lg p-2"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+        >
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1" for="design-scale">
+          2. Tamaño: <span id="scale-value">100%</span>
+        </label>
+        <input id="design-scale" type="range" min="10" max="250" value="100" class="w-full accent-red-600">
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1" for="design-rotation">
+          3. Rotación: <span id="rotation-value">0°</span>
+        </label>
+        <input id="design-rotation" type="range" min="-180" max="180" value="0" class="w-full accent-red-600">
+      </div>
+
+      <div class="flex gap-2">
+        <button id="design-reset" type="button" class="pill flex-1 justify-center">Restablecer</button>
+        <button id="design-download" type="button" class="pill dark-pill flex-1 justify-center">Descargar PNG</button>
+      </div>
+
+      <div class="border-t border-slate-200 pt-5">
+        <p class="text-lg font-black text-slate-900">{{ product.price_display }}</p>
+        <button id="design-add-cart" type="button" class="pill red w-full justify-center mt-3">
+          Agregar diseño al carrito ↗
+        </button>
+        <p id="design-feedback" class="hidden text-xs font-bold mt-3 text-red-600"></p>
+        <a class="text-xs text-sky-700 underline block mt-3" href="{% url 'products:detail' product.slug %}">
+          Volver al producto
+        </a>
+      </div>
+    </aside>
+  </div>
+</main>
+
+{{ product.pk|json_script:"custom-product-id" }}
+{{ product.name|json_script:"custom-product-name" }}
+{{ product.slug|json_script:"custom-product-slug" }}
+{% static 'assets/carrete-strong-real.png' as base_image %}
+{{ base_image|json_script:"custom-base-image" }}
+
+<script>
+(function () {
+  'use strict';
+
+  function value(id) {
+    return JSON.parse(document.getElementById(id).textContent);
+  }
+
+  var canvas = document.getElementById('design-canvas');
+  var ctx = canvas.getContext('2d');
+  var baseImage = new Image();
+  var userImage = null;
+  var scale = 1;
+  var rotation = 0;
+  var offsetX = 0;
+  var offsetY = 0;
+  var dragging = false;
+  var lastX = 0;
+  var lastY = 0;
+
+  var fileInput = document.getElementById('design-file');
+  var scaleInput = document.getElementById('design-scale');
+  var rotationInput = document.getElementById('design-rotation');
+  var feedback = document.getElementById('design-feedback');
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#f1f5f9';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Fondo: fotografía real del carrete Strong.
+    var padding = 60;
+    var baseSize = canvas.width - padding * 2;
+    ctx.drawImage(baseImage, padding, padding, baseSize, baseSize);
+
+    if (userImage) {
+      ctx.save();
+      ctx.translate(canvas.width / 2 + offsetX, canvas.height / 2 + offsetY);
+      ctx.rotate(rotation * Math.PI / 180);
+      var size = 300 * scale;
+      ctx.globalAlpha = 0.92;
+      ctx.drawImage(userImage, -size / 2, -size / 2, size, size);
+      ctx.restore();
+    }
+  }
+
+  baseImage.onload = draw;
+  baseImage.src = value('custom-base-image');
+
+  function showFeedback(text) {
+    feedback.textContent = text;
+    feedback.classList.remove('hidden');
+  }
+
+  fileInput.addEventListener('change', function () {
+    var file = fileInput.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function (event) {
+      userImage = new Image();
+      userImage.onload = draw;
+      userImage.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  scaleInput.addEventListener('input', function () {
+    scale = Number(scaleInput.value) / 100;
+    document.getElementById('scale-value').textContent = scaleInput.value + '%';
+    draw();
+  });
+
+  rotationInput.addEventListener('input', function () {
+    rotation = Number(rotationInput.value);
+    document.getElementById('rotation-value').textContent = rotation + '°';
+    draw();
+  });
+
+  canvas.addEventListener('pointerdown', function (event) {
+    dragging = true;
+    lastX = event.clientX;
+    lastY = event.clientY;
+    canvas.setPointerCapture(event.pointerId);
+  });
+  canvas.addEventListener('pointermove', function (event) {
+    if (!dragging) return;
+    offsetX += event.clientX - lastX;
+    offsetY += event.clientY - lastY;
+    lastX = event.clientX;
+    lastY = event.clientY;
+    draw();
+  });
+  canvas.addEventListener('pointerup', function () { dragging = false; });
+  canvas.addEventListener('pointercancel', function () { dragging = false; });
+
+  document.getElementById('design-reset').addEventListener('click', function () {
+    scale = 1;
+    rotation = 0;
+    offsetX = 0;
+    offsetY = 0;
+    scaleInput.value = 100;
+    rotationInput.value = 0;
+    document.getElementById('scale-value').textContent = '100%';
+    document.getElementById('rotation-value').textContent = '0°';
+    draw();
+  });
+
+  function toBlob() {
+    return new Promise(function (resolve) {
+      canvas.toBlob(function (blob) { resolve(blob); }, 'image/png');
+    });
+  }
+
+  document.getElementById('design-download').addEventListener('click', function () {
+    if (!userImage) {
+      showFeedback('Sube una imagen antes de descargar.');
+      return;
+    }
+    toBlob().then(function (blob) {
+      var link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'carrete-' + value('custom-product-slug') + '.png';
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+  });
+
+  function csrfToken() {
+    var input = document.querySelector('[name="csrfmiddlewaretoken"]');
+    if (input) return input.value;
+    var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  }
+
+  document.getElementById('design-add-cart').addEventListener('click', async function () {
+    if (!userImage) {
+      showFeedback('Sube una imagen para personalizar tu carrete.');
+      return;
+    }
+    var button = this;
+    button.disabled = true;
+    button.textContent = 'Guardando diseño...';
+    feedback.classList.add('hidden');
+
+    try {
+      var blob = await toBlob();
+      var form = new FormData();
+      form.append('design', blob, 'carrete-' + value('custom-product-slug') + '.png');
+      var response = await fetch(window.location.pathname + 'subir/', {
+        method: 'POST',
+        body: form,
+        headers: {
+          'X-CSRFToken': csrfToken(),
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+      });
+      var data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.message || 'No se pudo guardar el diseño.');
+      if (data.warning) console.warn(data.warning);
+      window.location.href = data.redirect;
+    } catch (error) {
+      showFeedback(error.message);
+      button.disabled = false;
+      button.textContent = 'Agregar diseño al carrito ↗';
+    }
+  });
+
+  draw();
+})();
+</script>
+{% endblock %}

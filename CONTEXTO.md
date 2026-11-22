@@ -198,3 +198,70 @@ git ls-tree -r --name-only HEAD | grep -E '^\.env$'   # debe salir vacío
 - `SECRET_KEY` sin valor lanza `ImproperlyConfigured` al cargar settings.
 - No simplificar el HTML de referencia bajo ningún concepto; los diffs permitidos son sólo `{% static %}`, CSRF, `action`, `name` y filas dinámicas.
 - El chat **no** viaja en el repo: este `CONTEXTO.md` reemplaza al transcript.
+
+---
+
+## 10. Ejecución de fases — 21/11/2026
+
+Estado: **Fases 1 a 4 implementadas y verificadas**. Los cambios de esta sesión aún **no tienen commit**; el último commit sigue siendo `cb6149c`.
+
+### Decisiones nuevas del usuario
+
+- RF-09 se implementa **completo** (canvas + export PNG + diseño adjunto a la orden).
+- Se elimina "Despacho a domicilio": sólo **Click & Collect** (columnas históricas quedan deprecadas, sin migración destructiva).
+- RF-05 pasa a ser **transferencia bancaria**; se corrige el informe, no se integra pasarela.
+- **El código manda** en versiones: Django 6.1.3 / Python 3.12+ / Supabase. Despliegue diferido.
+- Categorías oficiales: **Volantines, Carretes, Hilos, Accesorios, Maletas** (fixture `products/fixtures/categories.json`).
+- El carrito de localStorage se **reemplaza** por carrito en base de datos; el diseño vive en la línea del carrito y se copia al `OrderItem`.
+- Datos bancarios y WhatsApp **configurables por `.env`**.
+- Destinatario por defecto del correo de compra: **ctorresj@utem.cl**.
+- La prueba con 120 usuarios concurrentes **no se ejecuta**; prioridad = funcionabilidad y requerimientos correctos.
+
+### Cambios por fase
+
+**Fase 1 — Base**
+- `cart/models.py`: `session_key` (no único) y `design_url`/`design_name` en `CartItem`. Migraciones `cart/0002_*` y `0003_*`.
+- `cart/services.py` + `cart/views.py`: carrito server-side y API `/cart/api/*`.
+- `static/js/cart.js`: consume la API, ya no usa `localStorage` ni `cart_json`.
+- Plantillas nuevas: `cart/view.html`, `cart/checkout.html`, `products/detail.html`, `orders/admin_list.html`, `orders/success.html`.
+- Slug único automático en `product_save`; `messages` visibles en tienda y admin.
+- Botones de categoría generados desde `Category`.
+- `config/context_processors.py`: WhatsApp, dirección y datos bancarios en todas las plantillas.
+- `manage.py` + `config/settings_test.py`: `manage.py test` usa SQLite en memoria.
+
+**Fase 2 — RF-09 y trazabilidad**
+- `products/services.py::upload_design` → bucket `custom-designs` con fallback local.
+- `/personalizar/<slug>/` + `/personalizar/<slug>/subir/`; canvas con carga, escala, rotación, arrastre y export PNG.
+- `OrderItem.design_url` / `design_name` (migración `orders/0003_*`).
+- Descuento de stock atómico en checkout (`select_for_update`).
+- `/orders/pedido/` y `/orders/pedido/<code>/` para consultar estado.
+
+**Fase 3 — Correos y reportes**
+- `send_customer_confirmation()` en el checkout y `send_customer_status_notification()` al pasar a *Listo para Retiro* (una sola vez; botón manual se conserva con `try/except`).
+- `04 / REPORTES` en el dashboard: pedidos por estado, ventas por categoría y próximos retiros, con filtro de fechas.
+
+**Fase 4 — Calidad (sin prueba de carga)**
+- Validación de RUT chileno, correo y teléfono en checkout.
+- Límites de tipo/tamaño: comprobante 5 MB, diseño 3 MB, imágenes de producto 3 MB.
+- Rate-limit simple de login (5 intentos por sesión).
+
+### Bug crítico resuelto
+
+El checkout creates session dentro de `transaction.atomic`; al fallar, el rollback borraba la sesión y `SessionMiddleware` respondía 400 HTML (`SessionInterrupted`) en vez del JSON de error. Fix: crear carrito/sesión **fuera** de la transacción (`checkout_submit` → `_create_order_from_cart(request, cart)`).
+
+### Verificaciones pasadas
+
+- `manage.py check` → OK.
+- `manage.py makemigrations --check --dry-run` → "No changes detected".
+- `manage.py migrate` → todas aplicadas en Supabase Postgres.
+- `manage.py test tests` → **20 pruebas OK** (3.9 s).
+- `loaddata categories` → 5 categorías oficiales en BD.
+- Smoke HTTP con `runserver`: `/`, `/cart/api/`, `/admin-panel/login/`, `/producto/<slug>/`, `/cart/carrito/` → 200.
+- BD real: `DB_ENGINE=postgresql`, `DATABASE_URL_SET=True`; `ADMIN_EMAIL=ctorresj@utem.cl`, `RESEND_CONFIGURED=False` (backend consola local).
+
+### Pendiente
+
+1. Configurar `RESEND_API_KEY` y verificar `DEFAULT_FROM_EMAIL` para envío real.
+2. Completar `BANK_RUT`, `BANK_ACCOUNT` y `WHATSAPP_NUMBER` en `.env`.
+3. Crear el bucket `custom-designs` en Supabase Storage (si Supabase está activo).
+4. Commit de los cambios y, más adelante, despliegue (Fase 5 diferida).

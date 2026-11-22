@@ -33,10 +33,21 @@ SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY', '')
 SUPABASE_STORAGE_BUCKET = os.environ.get('SUPABASE_STORAGE_BUCKET', '')
 SUPABASE_RECEIPTS_BUCKET = os.environ.get('SUPABASE_RECEIPTS_BUCKET', 'payment-receipts')
+SUPABASE_DESIGNS_BUCKET = os.environ.get('SUPABASE_DESIGNS_BUCKET', 'custom-designs')
+
+# Datos públicos del negocio (configurables sin tocar el código).
+WHATSAPP_NUMBER = os.environ.get('WHATSAPP_NUMBER', '')
+BUSINESS_ADDRESS = os.environ.get(
+    'BUSINESS_ADDRESS', 'Calle Groenlandia 2350, Cerrillos'
+)
+BANK_NAME = os.environ.get('BANK_NAME', 'Banco Estado')
+BANK_ACCOUNT_TYPE = os.environ.get('BANK_ACCOUNT_TYPE', 'Cuenta Vista')
+BANK_RUT = os.environ.get('BANK_RUT', '')
+BANK_ACCOUNT = os.environ.get('BANK_ACCOUNT', '')
 
 # Correo (Resend) — la key se carga del entorno; sin key se usa la consola en local.
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
-ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', '')
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', '').strip() or 'ctorresj@utem.cl'
 DEFAULT_FROM_EMAIL = os.environ.get(
     'DEFAULT_FROM_EMAIL',
     'Volantines Strong <onboarding@resend.dev>',
@@ -87,6 +98,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'config.context_processors.business',
             ],
         },
     },

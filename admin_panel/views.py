@@ -10,14 +10,33 @@ from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.mail import send_mail
+from django.db.models import Count, F, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.text import slugify
 from django.views.decorators.http import require_http_methods, require_POST
 
-from orders.models import Order
+from config.validators import IMAGE_TYPES, MAX_IMAGE_SIZE, validate_upload
+from orders.models import Order, OrderItem
+from orders.services import send_customer_status_notification
 from products.models import Category, Product, ProductImage
+
+
+def _unique_product_slug(name, exclude_pk=None):
+    """Genera un slug único para no violar el constraint UNIQUE de Product."""
+    base = slugify(name) or "producto"
+    slug = base
+    counter = 2
+    while True:
+        queryset = Product.objects.filter(slug=slug)
+        if exclude_pk:
+            queryset = queryset.exclude(pk=exclude_pk)
+        if not queryset.exists():
+            return slug
+        slug = f"{base}-{counter}"
+        counter += 1
 
 
 def _upload_image(file, product_pk, gallery=False):
@@ -52,6 +71,11 @@ def login_view(request):
         return redirect("admin_panel:dashboard")
 
     if request.method == "POST":
+        attempts = request.session.get("login_attempts", 0)
+        if attempts >= 5:
+            messages.error(request, "Demasiados intentos fallidos. Intenta nuevamente más tarde.")
+            return render(request, "admin_panel/login.html")
+
         identifier = request.POST.get("admin_identifier", "").strip()
         password = request.POST.get("admin_password", "")
 
@@ -65,8 +89,10 @@ def login_view(request):
 
         if user is not None and user.is_staff:
             login(request, user)
+            request.session.pop("login_attempts", None)
             return redirect("admin_panel:dashboard")
 
+        request.session["login_attempts"] = attempts + 1
         messages.error(request, "Credenciales incorrectas o usuario sin acceso al panel.")
 
     return render(request, "admin_panel/login.html")
@@ -85,12 +111,48 @@ def dashboard(request):
     if edit_id and edit_id.isdigit():
         editing_product = Product.objects.filter(pk=edit_id).first()
 
+    orders = Order.objects.all().order_by("-created_at")
+    date_from = (request.GET.get("date_from") or "").strip()
+    date_to = (request.GET.get("date_to") or "").strip()
+    if date_from:
+        orders = orders.filter(created_at__date__gte=date_from)
+    if date_to:
+        orders = orders.filter(created_at__date__lte=date_to)
+
+    status_counts = [
+        {"label": label, "value": orders.filter(status=value).count()}
+        for value, label in Order.STATUS_CHOICES
+    ]
+
+    category_sales = list(
+        OrderItem.objects.filter(order_id__in=orders.values("pk"))
+        .values("product__category__name")
+        .annotate(
+            units=Sum("quantity"),
+            revenue=Sum(F("price") * F("quantity")),
+        )
+        .order_by("-revenue")
+    )
+    for row in category_sales:
+        row["name"] = row.pop("product__category__name")
+
+    upcoming_pickups = (
+        Order.objects.filter(pickup_date__gte=timezone.localdate())
+        .exclude(status__in=["retirado", "cancelado"])
+        .order_by("pickup_date", "pickup_slot")[:10]
+    )
+
     return render(request, "admin_panel/dashboard.html", {
         "categories": Category.objects.all().order_by("order", "name"),
         "products": Product.objects.select_related("category").prefetch_related("gallery").all(),
-        "orders": Order.objects.all().order_by("-created_at")[:20],
+        "orders": orders[:20],
         "status_choices": Order.STATUS_CHOICES,
         "editing_product": editing_product,
+        "status_counts": status_counts,
+        "category_sales": category_sales,
+        "upcoming_pickups": upcoming_pickups,
+        "date_from": date_from,
+        "date_to": date_to,
     })
 
 
@@ -133,6 +195,8 @@ def product_save(request):
         return redirect("admin_panel:dashboard")
 
     product.name = name
+    if not product.slug:
+        product.slug = _unique_product_slug(name)
     product.category = category
     product.specs = request.POST.get("prod_specs", "")
     product.description = request.POST.get("prod_desc", "")
@@ -140,6 +204,10 @@ def product_save(request):
 
     image_file = request.FILES.get("prod_image_file")
     if image_file:
+        invalid = validate_upload(image_file, IMAGE_TYPES, MAX_IMAGE_SIZE, "la imagen principal")
+        if invalid:
+            messages.error(request, invalid)
+            return redirect("admin_panel:dashboard")
         remote_url, local_path, error = _upload_image(image_file, product.pk)
         product.image_url = remote_url or ""
         product.image = local_path or None
@@ -155,6 +223,10 @@ def product_save(request):
     if gallery_files:
         ProductImage.objects.filter(product=product).delete()
         for index, gallery_file in enumerate(gallery_files):
+            invalid = validate_upload(gallery_file, IMAGE_TYPES, MAX_IMAGE_SIZE, "una imagen de galería")
+            if invalid:
+                messages.error(request, invalid)
+                continue
             remote_url, local_path, error = _upload_image(gallery_file, product.pk, gallery=True)
             ProductImage.objects.create(
                 product=product,
@@ -189,9 +261,22 @@ def order_status_update(request, order_code):
     new_status = request.POST.get("status")
     if new_status not in dict(Order.STATUS_CHOICES):
         return JsonResponse({"ok": False, "message": "Estado inválido"}, status=400)
+
+    previous_status = order.status
     order.status = new_status
     order.save(update_fields=["status"])
-    return JsonResponse({"ok": True, "status": order.get_status_display()})
+
+    notification = ""
+    if new_status == "listo_para_retiro" and previous_status != new_status:
+        try:
+            send_customer_status_notification(order)
+        except Exception as exc:
+            notification = f"El estado se actualizó, pero el correo no pudo enviarse: {exc}"
+
+    payload = {"ok": True, "status": order.get_status_display()}
+    if notification:
+        payload["warning"] = notification
+    return JsonResponse(payload)
 
 
 @staff_member_required(login_url="admin_panel:login")
@@ -201,17 +286,23 @@ def order_notify(request, order_code):
     if not order.customer_email:
         return JsonResponse({"ok": False, "message": "El pedido no tiene correo"}, status=400)
 
-    send_mail(
-        subject=f"Actualización de tu pedido {order.code} — Volantines Strong",
-        message=(
-            f"Hola {order.customer_name},\n\n"
-            f"Tu pedido {order.code} está: {order.get_status_display()}.\n\n"
-            "Gracias por comprar en Volantines Strong."
-        ),
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[order.customer_email],
-        fail_silently=False,
-    )
+    try:
+        send_mail(
+            subject=f"Actualización de tu pedido {order.code} — Volantines Strong",
+            message=(
+                f"Hola {order.customer_name},\n\n"
+                f"Tu pedido {order.code} está: {order.get_status_display()}.\n\n"
+                "Gracias por comprar en Volantines Strong."
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[order.customer_email],
+            fail_silently=False,
+        )
+    except Exception as exc:
+        return JsonResponse(
+            {"ok": False, "message": f"No se pudo enviar el correo: {exc}"},
+            status=500,
+        )
     return JsonResponse({"ok": True})
 
 

@@ -58,7 +58,12 @@ def send_owner_notification(order, receipt_url, receipt_name, receipt_content, r
     lines.append(f"Total: ${order.total:,}".replace(",", "."))
     lines.append(f"Medio de pago informado: {order.payment_method or 'transferencia'}")
     if order.payment_method == "transferencia":
-        lines.append("Datos de transferencia: Banco Estado · Cuenta Vista · Titular Volantines Strong · RUT 12.345.678-9 · Cuenta 12345678901")
+        lines.append(
+            "Datos de transferencia: "
+            f"{settings.BANK_NAME} · {settings.BANK_ACCOUNT_TYPE} · "
+            f"Titular Volantines Strong · RUT {settings.BANK_RUT or 'por configurar'} · "
+            f"Cuenta {settings.BANK_ACCOUNT or 'por configurar'}"
+        )
     lines.append(f"Comprobante: {receipt_url}")
 
     text_body = "\n".join(lines)
@@ -75,4 +80,67 @@ def send_owner_notification(order, receipt_url, receipt_name, receipt_content, r
     email.attach_alternative(html_body, "text/html")
     if receipt_content and receipt_name:
         email.attach(receipt_name, receipt_content, receipt_mimetype or "application/octet-stream")
+    email.send(fail_silently=False)
+
+
+def send_customer_confirmation(order):
+    """Confirmación automática al comprador con el código y datos de retiro."""
+    if not order.customer_email:
+        return False
+
+    lines = [
+        f"Hola {order.customer_name},",
+        "",
+        f"Recibimos tu pedido {order.code} y tu comprobante de pago.",
+        "Te avisaremos cuando esté listo para retiro.",
+        "",
+        f"Total: ${order.total:,}".replace(",", "."),
+        f"Retiro: {settings.BUSINESS_ADDRESS}",
+        f"Fecha: {order.pickup_date or 'Por confirmar'} {order.pickup_slot}",
+        "",
+        "Puedes consultar el estado en cualquier momento con tu código.",
+        "¡Gracias por comprar en Volantines Strong!",
+    ]
+    _send_customer_email(
+        order,
+        f"Confirmación de tu pedido {order.code} — Volantines Strong",
+        lines,
+    )
+    return True
+
+
+def send_customer_status_notification(order):
+    """Aviso automático cuando el pedido pasa a 'Listo para Retiro'."""
+    if not order.customer_email:
+        return False
+
+    lines = [
+        f"Hola {order.customer_name},",
+        "",
+        f"Tu pedido {order.code} ya está listo para retiro.",
+        "",
+        f"Retira en: {settings.BUSINESS_ADDRESS}",
+        f"Fecha y bloque: {order.pickup_date or 'Por confirmar'} {order.pickup_slot}",
+        "No olvides presentar tu número de pedido.",
+        "",
+        "¡Gracias por comprar en Volantines Strong!",
+    ]
+    _send_customer_email(
+        order,
+        f"Tu pedido {order.code} está listo — Volantines Strong",
+        lines,
+    )
+    return True
+
+
+def _send_customer_email(order, subject, lines):
+    text_body = "\n".join(lines)
+    html_body = "<br>".join(f"<span>{line}</span>" for line in lines)
+    email = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[order.customer_email],
+    )
+    email.attach_alternative(html_body, "text/html")
     email.send(fail_silently=False)

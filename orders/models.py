@@ -98,7 +98,9 @@ class OrderItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Producto")
     quantity = models.PositiveIntegerField(default=1, verbose_name="Cantidad")
     price = models.IntegerField(verbose_name="Precio unitario")
-    
+    design_url = models.URLField(blank=True, verbose_name="URL del diseño personalizado")
+    design_name = models.CharField(max_length=255, blank=True, verbose_name="Nombre del diseño")
+
     class Meta:
         verbose_name = "Elemento de orden"
         verbose_name_plural = "Elementos de orden"

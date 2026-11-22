@@ -725,6 +725,15 @@
 </head>
 
 <body class="admin-page">
+{% if messages %}
+<div class="admin-shell" style="padding-top:18px;">
+  {% for message in messages %}
+  <p class="text-xs font-bold" style="color:{% if message.tags == 'error' %}#f87171{% elif message.tags == 'warning' %}#fbbf24{% else %}#4ade80{% endif %};">
+    {{ message }}
+  </p>
+  {% endfor %}
+</div>
+{% endif %}
 {% block admin_content %}{% endblock %}
   <!-- ==========================================
        SUPABASE Y ADMIN.JS

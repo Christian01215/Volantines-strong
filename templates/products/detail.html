@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ product.name }} | Volantines Strong{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top:130px;padding-bottom:90px;">
+  <div class="eyebrow"><span class="eyebrow-mark"></span> {{ product.category.name|upper }} / STRONG</div>
+  <h2 class="text-3xl font-black text-slate-900 mt-2">{{ product.name }}</h2>
+
+  <div class="grid md:grid-cols-2 gap-10 mt-8">
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 grid place-items-center min-h-[360px]">
+      {% if product.image_url %}
+      <img src="{{ product.image_url }}" alt="{{ product.name }}" class="max-h-[420px] object-contain">
+      {% elif product.image %}
+      <img src="{{ product.image.url }}" alt="{{ product.name }}" class="max-h-[420px] object-contain">
+      {% else %}
+      <span class="text-8xl font-black italic text-slate-900">S</span>
+      {% endif %}
+    </section>
+
+    <section class="space-y-5">
+      <div>
+        <p class="text-xs font-bold uppercase text-slate-500">Ficha técnica</p>
+        <p class="text-sm text-slate-700 mt-1 whitespace-pre-line">{{ product.specs|default:"Sin ficha técnica cargada." }}</p>
+      </div>
+
+      {% if product.description %}
+      <div>
+        <p class="text-xs font-bold uppercase text-slate-500">Descripción</p>
+        <p class="text-sm text-slate-700 mt-1 whitespace-pre-line">{{ product.description }}</p>
+      </div>
+      {% endif %}
+
+      <div class="flex items-center gap-4">
+        <span class="text-3xl font-black text-slate-900">{{ product.price_display }}</span>
+        {% if product.stock > 0 %}
+        <span class="text-xs font-bold text-emerald-700">STOCK {{ product.stock }}</span>
+        {% else %}
+        <span class="text-xs font-bold text-red-600">AGOTADO</span>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-wrap gap-3">
+        <button
+          type="button"
+          id="detail-add-btn"
+          class="pill red"
+          {% if product.stock == 0 %}disabled{% endif %}
+        >Agregar al carrito ↗</button>
+
+        <a
+          id="detail-wa-btn"
+          class="pill dark-pill"
+          href="#"
+          target="_blank"
+          rel="noopener"
+        >Consultar por WhatsApp ↗</a>
+
+        {% if product.category.slug == 'carretes' %}
+        <a class="pill" href="{% url 'products:customize' product.slug %}">
+          Personalizar este carrete ↗
+        </a>
+        {% endif %}
+      </div>
+
+      {% if related %}
+      <div class="pt-4 border-t border-slate-200">
+        <p class="text-xs font-bold uppercase text-slate-500 mb-3">También te puede interesar</p>
+        <div class="flex flex-wrap gap-2">
+          {% for other in related %}
+          <a class="text-xs text-sky-700 underline" href="{% url 'products:detail' other.slug %}">{{ other.name }}</a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </section>
+  </div>
+</main>
+
+{{ product.pk|json_script:"d-id" }}
+{{ product.name|json_script:"d-name" }}
+{{ product.category.name|json_script:"d-cat" }}
+{{ product.price|json_script:"d-price" }}
+{{ product.price_display|json_script:"d-price-label" }}
+{{ product.stock|json_script:"d-stock" }}
+{% if product.image_url %}
+{{ product.image_url|json_script:"d-image" }}
+{% elif product.image %}
+{{ product.image.url|json_script:"d-image" }}
+{% else %}
+{{ ""|json_script:"d-image" }}
+{% endif %}
+
+<script>
+(function () {
+  function value(id) {
+    return JSON.parse(document.getElementById(id).textContent);
+  }
+
+  var product = {
+    id: value('d-id'),
+    name: value('d-name'),
+    category: value('d-cat'),
+    price: value('d-price'),
+    priceLabel: value('d-price-label'),
+    image: value('d-image'),
+    stock: value('d-stock')
+  };
+
+  var addBtn = document.getElementById('detail-add-btn');
+  if (addBtn) {
+    addBtn.addEventListener('click', function () {
+      if (window.StrongCart) window.StrongCart.add(product);
+    });
+  }
+
+  var waBtn = document.getElementById('detail-wa-btn');
+  if (waBtn && window.STRONG_WHATSAPP_URL) {
+    waBtn.href = window.STRONG_WHATSAPP_URL + '?text=' + encodeURIComponent(
+      'Hola, quiero consultar por ' + product.name
+    );
+  }
+})();
+</script>
+{% endblock %}

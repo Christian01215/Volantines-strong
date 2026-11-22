@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Consultar pedido | Volantines Strong{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top:140px;padding-bottom:100px;">
+  <div class="eyebrow"><span class="eyebrow-mark"></span> SEGUIMIENTO</div>
+  <h2 class="text-3xl font-black text-slate-900 mt-2">¿Cómo va tu pedido?</h2>
+
+  <form method="get" action="{% url 'orders:track' %}" class="mt-6 max-w-xl flex gap-2">
+    <input
+      class="flex-1 px-4 py-3 rounded-xl border border-slate-300 text-sm uppercase font-bold tracking-wider"
+      name="code"
+      value="{{ code }}"
+      placeholder="VC12345678"
+      maxlength="20"
+      required
+    >
+    <button class="pill red" type="submit">Buscar ↗</button>
+  </form>
+
+  {% if error %}
+  <p class="mt-4 text-sm font-bold text-red-600">{{ error }}</p>
+  {% endif %}
+
+  {% if order %}
+  <section class="mt-8 max-w-2xl bg-white border border-slate-200 rounded-2xl p-8">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <p class="text-xs font-bold uppercase text-slate-500">Número de pedido</p>
+        <p class="text-3xl font-black text-red-600 mt-1">{{ order.code }}</p>
+      </div>
+      <span class="text-xs font-black px-3 py-2 rounded-full bg-slate-900 text-white">
+        {{ order.get_status_display|upper }}
+      </span>
+    </div>
+
+    <div class="mt-6 grid sm:grid-cols-2 gap-4 text-sm">
+      <div class="rounded-xl bg-slate-50 p-4">
+        <p class="text-xs font-bold uppercase text-slate-500">Retiro</p>
+        <p class="font-bold text-slate-900 mt-1">{{ business_address }}</p>
+      </div>
+      <div class="rounded-xl bg-slate-50 p-4">
+        <p class="text-xs font-bold uppercase text-slate-500">Fecha y bloque</p>
+        <p class="font-bold text-slate-900 mt-1">
+          {{ order.pickup_date|default:"Por confirmar" }} · {{ order.pickup_slot|default:"Por confirmar" }}
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-6 border-t border-slate-200 pt-6">
+      <p class="text-xs font-bold uppercase text-slate-500">Productos</p>
+      {% for item in order.items.all %}
+      <div class="flex justify-between text-sm py-1">
+        <span>{{ item.product.name }} × {{ item.quantity }}</span>
+        <span class="font-bold">${{ item.line_total|stringformat:"i" }}</span>
+      </div>
+      {% endfor %}
+      <div class="flex justify-between text-lg font-black mt-3">
+        <span>Total</span><span>{{ order.total_display }}</span>
+      </div>
+    </div>
+
+    {% if order.is_ready_for_pickup %}
+    <p class="mt-6 text-sm font-bold text-emerald-700">
+      ¡Tu pedido está listo! Puedes retirarlo en {{ business_address }}.
+    </p>
+    {% endif %}
+  </section>
+  {% endif %}
+</main>
+{% endblock %}

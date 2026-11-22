@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Pedido {{ order.code }} confirmado | Volantines Strong{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top:140px;padding-bottom:100px;">
+  <div class="eyebrow"><span class="eyebrow-mark"></span> PEDIDO REGISTRADO</div>
+  <h2 class="text-3xl font-black text-slate-900 mt-2">¡Gracias por comprar en Strong!</h2>
+
+  <div class="mt-8 max-w-2xl bg-white border border-slate-200 rounded-2xl p-8">
+    <p class="text-xs font-bold uppercase text-slate-500">Tu número de pedido</p>
+    <p class="text-4xl font-black text-red-600 mt-1">{{ order.code }}</p>
+
+    <p class="text-sm text-slate-700 mt-6">
+      Guarda este código. Recibiremos tu comprobante de transferencia y te avisaremos
+      cuando tu pedido esté listo para retiro.
+    </p>
+
+    <div class="mt-6 grid sm:grid-cols-2 gap-4 text-sm">
+      <div class="rounded-xl bg-slate-50 p-4">
+        <p class="text-xs font-bold uppercase text-slate-500">Retiro en taller</p>
+        <p class="font-bold text-slate-900 mt-1">{{ business_address }}</p>
+      </div>
+      <div class="rounded-xl bg-slate-50 p-4">
+        <p class="text-xs font-bold uppercase text-slate-500">Fecha y bloque</p>
+        <p class="font-bold text-slate-900 mt-1">
+          {{ order.pickup_date|default:"Por confirmar" }} · {{ order.pickup_slot|default:"Por confirmar" }}
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-6 border-t border-slate-200 pt-6">
+      <p class="text-xs font-bold uppercase text-slate-500">Resumen</p>
+      {% for item in order.items.all %}
+      <div class="flex justify-between text-sm py-1">
+        <span>{{ item.product.name }} × {{ item.quantity }}</span>
+        <span class="font-bold">${{ item.line_total|stringformat:"i" }}</span>
+      </div>
+      {% endfor %}
+      <div class="flex justify-between text-lg font-black mt-3">
+        <span>Total</span><span>{{ order.total_display }}</span>
+      </div>
+    </div>
+
+    <div class="mt-8 flex flex-wrap gap-3">
+      <a class="pill red" href="{% url 'products:catalog' %}">Seguir comprando ↗</a>
+      <a class="pill" href="{% url 'orders:track_detail' order.code %}">Consultar estado ↗</a>
+      {% if whatsapp_url != '#' %}
+      <a class="pill dark-pill" href="{{ whatsapp_url }}" target="_blank" rel="noopener">Consultar por WhatsApp ↗</a>
+      {% endif %}
+    </div>
+  </div>
+</main>
+{% endblock %}
