@@ -945,15 +945,17 @@ Taller de Sistemas de Información • UTEM | Página
 
 VOLANTINES STRONG | INFORME FINAL
 13.5. Estado del proyecto en la entrega final
-El proyecto se encuentra desplegado en Vercel y utiliza Supabase como base de
-datos y almacenamiento de archivos. El catálogo, el carrito, el checkout con
-comprobante de transferencia, el panel administrativo, el personalizador de
-carretes y los reportes avanzados se encuentran implementados y validados con
-pruebas automatizadas. Tras el último ciclo de correcciones queda pendiente
-publicar en Vercel la versión corregida, aplicar las migraciones de producción y
-verificar las variables de entorno de Storage y correo. La integración de una
-pasarela de pago automática permanece fuera del alcance comprometido; el flujo
-oficial es transferencia bancaria con revisión manual del comprobante.
+El proyecto se encuentra desplegado en Vercel
+(https://volantines-strong.vercel.app) y utiliza Supabase como base de datos y
+almacenamiento de archivos. El catálogo, el carrito, el checkout con comprobante
+de transferencia, el panel administrativo, el personalizador de carretes y los
+reportes avanzados están implementados, validados con 28 pruebas automáticas y
+publicados. El build de Vercel aplica las migraciones y recolector de archivos
+estáticos; las variables de Storage y correo quedaron configuradas en el
+proyecto. La integración de una pasarela de pago automática permanece fuera del
+alcance comprometido; el flujo oficial es transferencia bancaria con revisión
+manual del comprobante. Queda como tarea de operación verificar el dominio de
+remitente en Resend para asegurar la entrega de los correos reales.
 Taller de Sistemas de Información • UTEM | Página
 35
 

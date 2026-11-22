@@ -254,7 +254,7 @@ El checkout creates session dentro de `transaction.atomic`; al fallar, el rollba
 - `manage.py check` → OK.
 - `manage.py makemigrations --check --dry-run` → "No changes detected".
 - `manage.py migrate` → todas aplicadas en Supabase Postgres.
-- `manage.py test tests` → **20 pruebas OK** (3.9 s).
+- `manage.py test tests` → **20 pruebas OK** (3.9 s); tras los fixes finales, **28 pruebas OK**.
 - `loaddata categories` → 5 categorías oficiales en BD.
 - Smoke HTTP con `runserver`: `/`, `/cart/api/`, `/admin-panel/login/`, `/producto/<slug>/`, `/cart/carrito/` → 200.
 - BD real: `DB_ENGINE=postgresql`, `DATABASE_URL_SET=True`; `ADMIN_EMAIL=ctorresj@utem.cl`, `RESEND_CONFIGURED=False` (backend consola local).
@@ -277,3 +277,18 @@ El checkout creates session dentro de `transaction.atomic`; al fallar, el rollba
 - `.gitignore` incluye `.env.local` y `.vercel/`.
 - `.env.example` documenta `VERCEL_TOKEN`, `VERCEL_ORG_ID` y `VERCEL_PROJECT_ID`; el `.env` local tiene placeholders **comentados** para no sobrescribir un token real.
 - Falta que el usuario pegue su token y ejecute `vercel link` / `vercel env pull` / `vercel deploy`. Las variables de producción se cargan en el dashboard de Vercel.
+
+## 12. Fixes finales y despliegue — 22/11/2026
+
+- Storage centralizado en `config/storage.py`: en producción no hay fallback local; en tests sí. `SUPABASE_STORAGE_BUCKET` por defecto `product-images`.
+- `orders/services.py`: comprobantes, correos y cambios de estado centralizados. `update_order_status()` evita avisos duplicados y avisa al dueño con ganancia estimada.
+- `checkout_submit()` sube el comprobante antes de crear la orden y devuelve JSON inclusive en fallos 500, evitando el error `Unexpected token '<'` del frontend.
+- `admin.js`: el botón Desactivar/Reactivar ahora toma la URL de la fila; `cart.js` valida `Content-Type` antes de parsear JSON.
+- Costo real: `Product.cost`, `OrderItem.cost`, `Order.total_profit` y `line_profit`; Excel con resumen mensual, comparaciones y ganancias.
+- Baja lógica de productos: `is_active=False` con botón Reactivar; sin borrado físico.
+- `ALLOWED_HOSTS` y `ALLOW_LOCAL_STORAGE_FALLBACK=False` agregados en Vercel; `SUPABASE_URL` agregada con la URL pública del proyecto.
+- `EMAIL_BACKEND` no se define en Vercel: se usa Resend porque `RESEND_API_KEY` existe. Falta verificar el dominio de `DEFAULT_FROM_EMAIL`.
+- `vercel.json` incluye `buildCommand` con `migrate` + `collectstatic` para aplicar migraciones con los secretos disponibles en el build.
+- Commits: `d8c0e3f` (fixes) y `d6d42c0` (buildCommand), ambos en `origin/main`.
+- Despliegue producción: `dpl_ELdHu5mZHdQe4MyT96551gDiRJk9`, URL final https://volantines-strong.vercel.app. Smoke con `vercel curl`: `/health`, `/`, `/cart/api/` y `/admin-panel/login/` → 200.
+- Pendiente de operación: verificar dominio de remitente en Resend y revisar que los tres buckets públicos existan.
