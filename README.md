@@ -52,6 +52,7 @@ Copiá `.env.example` como `.env` y completá:
 | `SUPABASE_STORAGE_BUCKET` | Bucket de imágenes: `product-images`. |
 | `SUPABASE_RECEIPTS_BUCKET` | Bucket de comprobantes: `payment-receipts`. |
 | `SUPABASE_DESIGNS_BUCKET` | Bucket de diseños personalizados: `custom-designs`. |
+| `ALLOW_LOCAL_STORAGE_FALLBACK` | Permite guardar en `media/` si Supabase falla. Por defecto sigue a `DEBUG`; en Vercel debe quedar en `False`. |
 | `WHATSAPP_NUMBER` | Número usado en los enlaces `wa.me`. Vacío = links desactivados. |
 | `BANK_NAME` / `BANK_ACCOUNT_TYPE` / `BANK_RUT` / `BANK_ACCOUNT` | Datos de transferencia mostrados en checkout y correos. |
 | `BUSINESS_ADDRESS` | Dirección de retiro mostrada en tienda, correos y seguimiento. |
@@ -66,7 +67,7 @@ Copiá `.env.example` como `.env` y completá:
 
 ## Supabase Storage
 
-Creá estos dos buckets en **Supabase → Storage → Buckets**, marcados como **públicos**:
+Creá estos tres buckets en **Supabase → Storage → Buckets**, marcados como **públicos**:
 
 - `product-images` → fotos de productos y galería.
 - `payment-receipts` → comprobantes de pago.
@@ -86,7 +87,7 @@ python manage.py check_storage --create
 
 > `products_product` y `products_productimage` son **tablas de base de datos**, no buckets. Los buckets se crean en el dashboard de Supabase.
 
-Si la subida falla, el código guarda el archivo en `media/` y muestra un `messages.warning` con el error real. Las imágenes se guardan como ruta en `ImageField` **o** como URL en `image_url` (nunca una URL dentro del `ImageField`, para evitar `/media/media/...`).
+Si la subida falla en **local/desarrollo** (`DEBUG=True` o `ALLOW_LOCAL_STORAGE_FALLBACK=True`), el código guarda el archivo en `media/` y muestra un `messages.warning` con el error real. En **producción/Vercel** no existe ese fallback: la vista devuelve un mensaje claro en lugar de un 500, porque el disco efímero no conservaría el archivo. Las imágenes se guardan como ruta en `ImageField` **o** como URL en `image_url` (nunca una URL dentro del `ImageField`, para evitar `/media/media/...`).
 
 ---
 
@@ -95,12 +96,12 @@ Si la subida falla, el código guarda el archivo en `media/` y muestra un `messa
 Con `RESEND_API_KEY` configurada, el checkout envía **dos correos**: uno a `ADMIN_EMAIL` (por defecto `ctorresj@utem.cl`) y una confirmación al correo del comprador. El aviso al dueño incluye:
 
 - Datos del cliente, RUT, teléfono y correo.
-- Tipo de entrega, fecha, franja horaria, región/comuna/dirección.
-- Detalle de productos y total.
+- Retiro en taller, fecha y franja horaria (los campos de despacho quedan sólo como datos históricos).
+- Detalle de productos, costo, ganancia estimada y total.
 - Medio de pago y datos de transferencia.
 - Link al comprobante **y el archivo adjunto**.
 
-Además, cuando el admin cambia un pedido a **Listo para Retiro**, se envía automáticamente un aviso al comprador (una sola vez). El botón manual “Notificar” se mantiene.
+Además, los cambios de estado a **Pago Confirmado**, **Preparando**, **Listo para Retiro**, **Retirado** y **Cancelado** envían automáticamente un aviso al comprador, una sola vez por estado. El panel permite reenviar el aviso al cliente y también reenviar el aviso de nueva compra al administrador.
 
 Sin la key, los correos se imprimen en la terminal (backend consola), útil para desarrollo.
 
@@ -173,8 +174,10 @@ Migraciones incluidas:
 
 - `orders/0002_*` → métodos de pago, entrega y comprobante.
 - `orders/0003_*` → diseño personalizado por línea de pedido.
+- `orders/0004_*` → costo por línea, aviso al dueño y dedupe de notificaciones.
 - `products/0003_*` → descripción y galería de imágenes.
 - `products/0004_*` → `image_url` e `ImageField` opcional en galería.
+- `products/0005_*` → `cost` para calcular ganancias.
 - `cart/0002_*` → `session_key` y diseño en el carrito.
 - `cart/0003_*` → `session_key` no único (permite carritos históricos).
 
@@ -195,7 +198,7 @@ python manage.py loaddata categories
 5. Registrá el pedido: debe aparecer un código `VC########` y dos correos (dueño y comprador).
 6. Consultá el estado en `/orders/pedido/` con el código recibido.
 7. Entrá a `/admin-panel/dashboard/` → sección `03 / VENTAS`: el pedido debe estar con link al comprobante; en `04 / REPORTES` revisá los indicadores.
-8. Probá cambio de estado a *Listo para Retiro* (dispara correo automático), notificación manual, exportar Excel, editar/eliminar producto y logout.
+8. Probá cambio de estado a *Listo para Retiro* (dispara correo automático), notificación manual, exportar Excel, editar/desactivar/reactivar producto y logout.
 
 ---
 
@@ -239,7 +242,9 @@ vercel deploy        # O `vercel --prod` para producción
 
 ### Variables a configurar en el proyecto de Vercel
 
-Además del token (que es sólo para la CLI), cargá en **Project Settings → Environment Variables**: `SECRET_KEY`, `DEBUG=False`, `ALLOWED_HOSTS`, `DATABASE_URL` (Supabase), `SUPABASE_URL`, `SUPABASE_KEY`, buckets, `ADMIN_EMAIL`, `DEFAULT_FROM_EMAIL`, `RESEND_API_KEY` y los datos de negocio (`WHATSAPP_NUMBER`, `BANK_*`, `BUSINESS_ADDRESS`).
+Además del token (que es sólo para la CLI), cargá en **Project Settings → Environment Variables**: `SECRET_KEY`, `DEBUG=False`, `ALLOWED_HOSTS`, `DATABASE_URL` (Supabase), `SUPABASE_URL`, `SUPABASE_KEY` (service_role), buckets, `ADMIN_EMAIL`, `DEFAULT_FROM_EMAIL`, `RESEND_API_KEY` y los datos de negocio (`WHATSAPP_NUMBER`, `BANK_*`, `BUSINESS_ADDRESS`).
+
+No definas `EMAIL_BACKEND`: el código elige Resend cuando hay `RESEND_API_KEY` y consola cuando no la hay. `ALLOW_LOCAL_STORAGE_FALLBACK` debe quedar en `False` (o sin definir, porque `DEBUG=False`). Usá la cadena **Transaction pooler** de Supabase (`puerto 6543`) en `DATABASE_URL`; el pooler es compatible con funciones serverless. Los buckets `product-images`, `payment-receipts` y `custom-designs` deben existir y ser públicos. Después de publicar, aplicá las migraciones con `vercel env pull && python manage.py migrate`.
 
 ---
 
@@ -255,7 +260,7 @@ BASE/
 ├── refvisual/          # fuente visual única (no editar)
 ├── static/             # css y js reconstruidos
 ├── templates/          # base, storefront, products, cart, orders, admin_panel
-├── tests/              # 20 pruebas smoke/integración
+├── tests/              # 28 pruebas smoke/integración
 ├── .env.example
 ├── requirements.txt
 └── vercel.json           # configuración de la función Python

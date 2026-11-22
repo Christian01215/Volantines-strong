@@ -48,6 +48,10 @@ class Order(models.Model):
     receipt_url = models.URLField(blank=True, verbose_name="URL del comprobante")
     receipt_name = models.CharField(max_length=255, blank=True, verbose_name="Nombre del comprobante")
 
+    owner_notified_at = models.DateTimeField(null=True, blank=True, verbose_name="Aviso al administrador")
+    last_notified_status = models.CharField(max_length=20, blank=True, verbose_name="Último estado notificado")
+    last_notified_at = models.DateTimeField(null=True, blank=True, verbose_name="Último aviso al cliente")
+
     status = models.CharField(
         max_length=20,
         choices=ORDER_STATUS_CHOICES,
@@ -79,6 +83,10 @@ class Order(models.Model):
     @property
     def is_finalized(self):
         return self.status == "retirado"
+
+    @property
+    def total_profit(self):
+        return sum(item.line_profit for item in self.items.all())
     
     def mark_preparing(self):
         self.status = "preparando"
@@ -98,6 +106,7 @@ class OrderItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Producto")
     quantity = models.PositiveIntegerField(default=1, verbose_name="Cantidad")
     price = models.IntegerField(verbose_name="Precio unitario")
+    cost = models.IntegerField(default=0, verbose_name="Costo unitario al vender")
     design_url = models.URLField(blank=True, verbose_name="URL del diseño personalizado")
     design_name = models.CharField(max_length=255, blank=True, verbose_name="Nombre del diseño")
 
@@ -111,3 +120,7 @@ class OrderItem(models.Model):
     @property
     def line_total(self):
         return self.price * self.quantity
+
+    @property
+    def line_profit(self):
+        return (self.price - self.cost) * self.quantity

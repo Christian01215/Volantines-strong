@@ -22,3 +22,4 @@ MIDDLEWARE = [
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 SUPABASE_URL = ''
 SUPABASE_KEY = ''
+ALLOW_LOCAL_STORAGE_FALLBACK = True

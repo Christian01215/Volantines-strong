@@ -22,6 +22,7 @@ class Product(models.Model):
     slug = models.SlugField(max_length=200, unique=True, verbose_name="Slug")
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="products", verbose_name="Categoría")
     price = models.IntegerField(verbose_name="Precio CLP")
+    cost = models.IntegerField(default=0, verbose_name="Costo CLP")
     stock = models.IntegerField(default=0, verbose_name="Stock")
     specs = models.TextField(blank=True, verbose_name="Ficha técnica")
     description = models.TextField(blank=True, verbose_name="Descripción")

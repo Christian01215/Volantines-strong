@@ -11,6 +11,20 @@
     return input ? input.value : '';
   }
 
+  function parseJson(response) {
+    var type = response.headers.get('content-type') || '';
+    if (type.indexOf('application/json') === -1) {
+      return response.text().then(function (text) {
+        var detail = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+        throw new Error(
+          'Error del servidor (' + response.status + '). ' +
+          (detail || 'Revisa los logs de Vercel.')
+        );
+      });
+    }
+    return response.json();
+  }
+
   function post(url, body) {
     return fetch(url, {
       method: 'POST',
@@ -21,7 +35,7 @@
       },
       body: body || new FormData()
     }).then(function (response) {
-      return response.json().then(function (data) {
+      return parseJson(response).then(function (data) {
         if (!response.ok || data.ok === false) {
           throw new Error(data.message || 'No se pudo completar la acción.');
         }
@@ -35,39 +49,12 @@
     window.location.reload();
   };
 
-  // Exportar pedidos a Excel usando el CDN SheetJS del HTML original.
+  // El reporte se genera en el servidor para incluir TODOS los pedidos
+  // y el resumen de ganancias mensuales.
   var exportBtn = document.getElementById('export-orders-btn');
   if (exportBtn) {
     exportBtn.addEventListener('click', function () {
-      if (!window.XLSX) return;
-
-      var table = document.querySelector('.admin-orders-table');
-      if (!table) return;
-
-      var rows = [];
-      table.querySelectorAll('thead th').forEach(function (th) {
-        rows.push([th.textContent.trim()]);
-      });
-
-      var matrix = [];
-      var headers = Array.prototype.map.call(
-        table.querySelectorAll('thead th'),
-        function (th) { return th.textContent.trim(); }
-      );
-      matrix.push(headers);
-
-      table.querySelectorAll('tbody tr').forEach(function (tr) {
-        matrix.push(Array.prototype.map.call(tr.querySelectorAll('td'), function (td) {
-          var select = td.querySelector('select');
-          if (select) return select.options[select.selectedIndex].text;
-          return td.textContent.replace(/\s+/g, ' ').trim();
-        }));
-      });
-
-      var sheet = XLSX.utils.aoa_to_sheet(matrix);
-      var book = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(book, sheet, 'Pedidos');
-      XLSX.writeFile(book, 'pedidos-volantines-strong.xlsx');
+      window.location.href = exportBtn.dataset.url || '/admin-panel/pedidos/exportar/';
     });
   }
 
@@ -79,7 +66,10 @@
     var body = new FormData();
     body.append('status', select.value);
     post(select.dataset.url, body)
-      .then(function () { window.location.reload(); })
+      .then(function (data) {
+        if (data && data.warning) window.alert(data.warning);
+        window.location.reload();
+      })
       .catch(function (error) {
         window.alert(error.message);
         window.location.reload();
@@ -90,6 +80,7 @@
   document.addEventListener('click', function (event) {
     var button = event.target.closest('[data-action], [data-url]');
     if (!button || button.matches('select[data-order-id]')) return;
+    if (button.id === 'export-orders-btn') return;
 
     var action = button.dataset.action;
 
@@ -102,6 +93,7 @@
         prod_name: row.dataset.name,
         prod_category: row.dataset.category,
         prod_price: row.dataset.price,
+        prod_cost: row.dataset.cost || '0',
         prod_stock: row.dataset.stock,
         prod_specs: row.dataset.specs,
         prod_desc: row.dataset.description
@@ -122,17 +114,29 @@
       return;
     }
 
-    if (!button.dataset.url) return;
+    var row = button.closest('tr');
+    var url = button.dataset.url;
+    if (!url && row) {
+      if (action === 'delete-product') url = row.dataset.deleteUrl;
+      if (action === 'restore-product') url = row.dataset.restoreUrl;
+    }
+    if (!url) return;
 
     if (action === 'delete-product') {
-      if (!window.confirm('¿Eliminar este producto?')) return;
+      if (!window.confirm('¿Desactivar este producto? No se borrará del historial de pedidos.')) return;
+    }
+    if (action === 'restore-product') {
+      if (!window.confirm('¿Reactivar este producto?')) return;
     }
     if (action === 'delete-order') {
       if (!window.confirm('¿Eliminar este pedido?')) return;
     }
 
-    post(button.dataset.url)
-      .then(function () { window.location.reload(); })
+    post(url)
+      .then(function (data) {
+        if (data && data.message) window.alert(data.message);
+        window.location.reload();
+      })
       .catch(function (error) { window.alert(error.message); });
   });
 

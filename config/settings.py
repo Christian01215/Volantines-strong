@@ -33,9 +33,15 @@ ALLOWED_HOSTS = [
 # Credenciales de Supabase (Storage / SDK)
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY', '')
-SUPABASE_STORAGE_BUCKET = os.environ.get('SUPABASE_STORAGE_BUCKET', '')
+SUPABASE_STORAGE_BUCKET = os.environ.get('SUPABASE_STORAGE_BUCKET', 'product-images')
 SUPABASE_RECEIPTS_BUCKET = os.environ.get('SUPABASE_RECEIPTS_BUCKET', 'payment-receipts')
 SUPABASE_DESIGNS_BUCKET = os.environ.get('SUPABASE_DESIGNS_BUCKET', 'custom-designs')
+
+# En Vercel el disco es efímero: nunca se debe caer al guardado local.
+# En desarrollo/tests se mantiene el fallback para poder trabajar sin Supabase.
+ALLOW_LOCAL_STORAGE_FALLBACK = os.environ.get(
+    'ALLOW_LOCAL_STORAGE_FALLBACK', str(DEBUG)
+).lower() in ('1', 'true', 'yes', 'on')
 
 # Datos públicos del negocio (configurables sin tocar el código).
 WHATSAPP_NUMBER = os.environ.get('WHATSAPP_NUMBER', '')

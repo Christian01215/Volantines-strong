@@ -33,6 +33,21 @@
     return match ? decodeURIComponent(match[1]) : '';
   }
 
+  function parseJson(response) {
+    var type = response.headers.get('content-type') || '';
+    if (type.indexOf('application/json') === -1) {
+      return response.text().then(function (text) {
+        var detail = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (detail.length > 120) detail = detail.slice(0, 120) + '…';
+        throw new Error(
+          'Error del servidor (' + response.status + '). ' +
+          (detail ? detail : 'Revisa los logs de Vercel.')
+        );
+      });
+    }
+    return response.json();
+  }
+
   function post(url, data) {
     var body = new FormData();
     Object.keys(data || {}).forEach(function (key) {
@@ -47,7 +62,7 @@
       },
       body: body
     }).then(function (response) {
-      return response.json().then(function (payload) {
+      return parseJson(response).then(function (payload) {
         if (!response.ok || payload.ok === false) {
           throw new Error(payload.message || 'No se pudo completar la acción.');
         }
@@ -65,7 +80,7 @@
 
   function refresh() {
     return fetch(URLS.list, { credentials: 'same-origin' })
-      .then(function (response) { return response.json(); })
+      .then(parseJson)
       .then(apply);
   }
 
@@ -224,7 +239,7 @@
           },
           credentials: 'same-origin'
         });
-        var data = await response.json();
+        var data = await parseJson(response);
 
         if (!response.ok || !data.ok) {
           throw new Error(data.message || 'No se pudo registrar el pedido.');

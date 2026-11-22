@@ -81,6 +81,13 @@ class ResendEmailBackend(BaseEmailBackend):
             )
             response.raise_for_status()
             return True
+        except httpx.HTTPStatusError as exc:
+            if not self.fail_silently:
+                detail = (exc.response.text or "").strip()[:500]
+                raise RuntimeError(
+                    f"Resend devolvió {exc.response.status_code}: {detail}"
+                ) from exc
+            return False
         except Exception:
             if not self.fail_silently:
                 raise

@@ -1,27 +1,33 @@
+import logging
 import mimetypes
 from pathlib import Path
 
-import supabase
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
-from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
-from django.core.mail import send_mail
-from django.db.models import Count, F, Sum
-from django.http import JsonResponse
+from django.db.models import F, Sum
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
 from django.views.decorators.http import require_http_methods, require_POST
 
+from config.storage import save_upload
 from config.validators import IMAGE_TYPES, MAX_IMAGE_SIZE, validate_upload
 from orders.models import Order, OrderItem
-from orders.services import send_customer_status_notification
+from orders.services import (
+    notify_customer,
+    send_owner_notification,
+    update_order_status,
+)
 from products.models import Category, Product, ProductImage
+
+from .reports import build_orders_workbook, monthly_summary
+
+logger = logging.getLogger(__name__)
 
 
 def _unique_product_slug(name, exclude_pk=None):
@@ -40,29 +46,27 @@ def _unique_product_slug(name, exclude_pk=None):
 
 
 def _upload_image(file, product_pk, gallery=False):
-    """Sube al bucket de productos.
+    """Sube la imagen al bucket de productos.
 
     Devuelve ``(url_remota, ruta_local, error)``. Nunca guarda una URL dentro
     de un ImageField: eso provocaba rutas tipo /media/media/products/...
+    En producción un fallo de Storage lanza StorageUploadError y la vista lo
+    transforma en un mensaje, en vez de devolver un 500.
     """
     content = file.read()
     filename = Path(file.name).name
     mimetype = file.content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
     suffix = "gallery" if gallery else "main"
     path = f"products/{product_pk}/{suffix}/{filename}"
-    error = None
 
-    if settings.SUPABASE_URL and settings.SUPABASE_KEY and settings.SUPABASE_STORAGE_BUCKET:
-        try:
-            client = supabase.create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-            bucket = client.storage.from_(settings.SUPABASE_STORAGE_BUCKET)
-            bucket.upload(path, content, {"content-type": mimetype})
-            return bucket.get_public_url(path), None, None
-        except Exception as exc:
-            error = str(exc)
-
-    local_path = default_storage.save(path, ContentFile(content))
-    return None, local_path, error
+    result = save_upload(
+        content,
+        path,
+        mimetype,
+        settings.SUPABASE_STORAGE_BUCKET,
+        f"la imagen {suffix} de {filename}",
+    )
+    return result.url, result.local_path, result.error
 
 
 @require_http_methods(["GET", "POST"])
@@ -151,6 +155,7 @@ def dashboard(request):
         "status_counts": status_counts,
         "category_sales": category_sales,
         "upcoming_pickups": upcoming_pickups,
+        "monthly_summary": monthly_summary(orders),
         "date_from": date_from,
         "date_to": date_to,
     })
@@ -189,9 +194,10 @@ def product_save(request):
 
     try:
         product.price = int(request.POST.get("prod_price") or 0)
+        product.cost = int(request.POST.get("prod_cost") or 0)
         product.stock = int(request.POST.get("prod_stock") or 0)
     except ValueError:
-        messages.error(request, "Precio y stock deben ser números.")
+        messages.error(request, "Precio, costo y stock deben ser números.")
         return redirect("admin_panel:dashboard")
 
     product.name = name
@@ -202,43 +208,56 @@ def product_save(request):
     product.description = request.POST.get("prod_desc", "")
     product.save()
 
-    image_file = request.FILES.get("prod_image_file")
-    if image_file:
-        invalid = validate_upload(image_file, IMAGE_TYPES, MAX_IMAGE_SIZE, "la imagen principal")
-        if invalid:
-            messages.error(request, invalid)
-            return redirect("admin_panel:dashboard")
-        remote_url, local_path, error = _upload_image(image_file, product.pk)
-        product.image_url = remote_url or ""
-        product.image = local_path or None
-        product.save(update_fields=["image", "image_url"])
-        if error:
-            messages.warning(
-                request,
-                f"No se pudo subir la imagen al bucket '{settings.SUPABASE_STORAGE_BUCKET}': {error}. "
-                "Se guardó en almacenamiento local.",
-            )
-
-    gallery_files = request.FILES.getlist("prod_gallery_files")[:4]
-    if gallery_files:
-        ProductImage.objects.filter(product=product).delete()
-        for index, gallery_file in enumerate(gallery_files):
-            invalid = validate_upload(gallery_file, IMAGE_TYPES, MAX_IMAGE_SIZE, "una imagen de galería")
+    try:
+        image_file = request.FILES.get("prod_image_file")
+        if image_file:
+            invalid = validate_upload(image_file, IMAGE_TYPES, MAX_IMAGE_SIZE, "la imagen principal")
             if invalid:
                 messages.error(request, invalid)
-                continue
-            remote_url, local_path, error = _upload_image(gallery_file, product.pk, gallery=True)
-            ProductImage.objects.create(
-                product=product,
-                image=local_path or None,
-                image_url=remote_url or "",
-                order=index,
-            )
+                return redirect("admin_panel:dashboard")
+            remote_url, local_path, error = _upload_image(image_file, product.pk)
+            product.image_url = remote_url or ""
+            product.image = local_path or None
+            product.save(update_fields=["image", "image_url"])
             if error:
                 messages.warning(
                     request,
-                    f"Una imagen de galería no se subió a Supabase: {error}. Se guardó localmente.",
+                    f"No se pudo subir la imagen al bucket '{settings.SUPABASE_STORAGE_BUCKET}': {error}. "
+                    "Se guardó en almacenamiento local.",
                 )
+
+        gallery_files = request.FILES.getlist("prod_gallery_files")[:4]
+        invalid_gallery = [
+            validate_upload(gallery_file, IMAGE_TYPES, MAX_IMAGE_SIZE, "una imagen de galería")
+            for gallery_file in gallery_files
+        ]
+        invalid_gallery = [error for error in invalid_gallery if error]
+        if invalid_gallery:
+            messages.error(request, " ".join(invalid_gallery))
+            return redirect("admin_panel:dashboard")
+
+        if gallery_files:
+            ProductImage.objects.filter(product=product).delete()
+            for index, gallery_file in enumerate(gallery_files):
+                remote_url, local_path, error = _upload_image(gallery_file, product.pk, gallery=True)
+                ProductImage.objects.create(
+                    product=product,
+                    image=local_path or None,
+                    image_url=remote_url or "",
+                    order=index,
+                )
+                if error:
+                    messages.warning(
+                        request,
+                        f"Una imagen de galería no se subió a Supabase: {error}. Se guardó localmente.",
+                    )
+    except Exception as exc:
+        logger.exception("No se pudieron guardar las imágenes del producto %s: %s", product.pk, exc)
+        messages.error(
+            request,
+            f"El producto se guardó, pero las imágenes no pudieron subirse: {exc}",
+        )
+        return redirect("admin_panel:dashboard")
 
     messages.success(request, f"Producto '{product.name}' guardado correctamente.")
     return redirect("admin_panel:dashboard")
@@ -247,35 +266,49 @@ def product_save(request):
 @staff_member_required(login_url="admin_panel:login")
 @require_POST
 def product_delete(request, product_id):
+    """Baja lógica: oculta el producto sin destruir el historial de pedidos."""
     product = get_object_or_404(Product, pk=product_id)
-    name = product.name
-    product.delete()
-    messages.success(request, f"Producto '{name}' eliminado.")
-    return JsonResponse({"ok": True})
+    product.is_active = False
+    product.save(update_fields=["is_active"])
+    messages.success(request, f"Producto '{product.name}' desactivado.")
+    return JsonResponse({
+        "ok": True,
+        "message": "Producto desactivado. Puedes reactivarlo cuando quieras.",
+        "active": False,
+    })
 
 
 @staff_member_required(login_url="admin_panel:login")
 @require_POST
+def product_restore(request, product_id):
+    product = get_object_or_404(Product, pk=product_id)
+    product.is_active = True
+    product.save(update_fields=["is_active"])
+    messages.success(request, f"Producto '{product.name}' reactivado.")
+    return JsonResponse({
+        "ok": True,
+        "message": "Producto reactivado.",
+        "active": True,
+    })
+
+
+@staff_member_required(login_url="admin_panel:login")
 def order_status_update(request, order_code):
     order = get_object_or_404(Order, code=order_code)
     new_status = request.POST.get("status")
-    if new_status not in dict(Order.STATUS_CHOICES):
+    try:
+        result = update_order_status(order, new_status)
+    except ValueError:
         return JsonResponse({"ok": False, "message": "Estado inválido"}, status=400)
 
-    previous_status = order.status
-    order.status = new_status
-    order.save(update_fields=["status"])
-
-    notification = ""
-    if new_status == "listo_para_retiro" and previous_status != new_status:
-        try:
-            send_customer_status_notification(order)
-        except Exception as exc:
-            notification = f"El estado se actualizó, pero el correo no pudo enviarse: {exc}"
-
-    payload = {"ok": True, "status": order.get_status_display()}
-    if notification:
-        payload["warning"] = notification
+    payload = {
+        "ok": True,
+        "status": result["status_display"],
+        "notified": result["notified"],
+        "message": result["message"],
+    }
+    if result["warning"]:
+        payload["warning"] = result["warning"]
     return JsonResponse(payload)
 
 
@@ -283,27 +316,35 @@ def order_status_update(request, order_code):
 @require_POST
 def order_notify(request, order_code):
     order = get_object_or_404(Order, code=order_code)
-    if not order.customer_email:
-        return JsonResponse({"ok": False, "message": "El pedido no tiene correo"}, status=400)
+    sent, message = notify_customer(order, force=True)
+    if not sent:
+        return JsonResponse({"ok": False, "message": message}, status=400)
+    return JsonResponse({"ok": True, "message": "Aviso enviado al cliente."})
 
+
+@staff_member_required(login_url="admin_panel:login")
+@require_POST
+def order_notify_owner(request, order_code):
+    """Reenvía el aviso de nueva compra al administrador."""
+    order = get_object_or_404(Order, code=order_code)
     try:
-        send_mail(
-            subject=f"Actualización de tu pedido {order.code} — Volantines Strong",
-            message=(
-                f"Hola {order.customer_name},\n\n"
-                f"Tu pedido {order.code} está: {order.get_status_display()}.\n\n"
-                "Gracias por comprar en Volantines Strong."
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[order.customer_email],
-            fail_silently=False,
+        send_owner_notification(
+            order,
+            order.receipt_url,
+            order.receipt_name,
+            None,
+            None,
         )
     except Exception as exc:
+        logger.exception("No se pudo reenviar el aviso de la orden %s: %s", order.code, exc)
         return JsonResponse(
             {"ok": False, "message": f"No se pudo enviar el correo: {exc}"},
             status=500,
         )
-    return JsonResponse({"ok": True})
+
+    order.owner_notified_at = timezone.now()
+    order.save(update_fields=["owner_notified_at"])
+    return JsonResponse({"ok": True, "message": f"Aviso enviado a {settings.ADMIN_EMAIL}."})
 
 
 @staff_member_required(login_url="admin_panel:login")
@@ -312,3 +353,23 @@ def order_delete(request, order_code):
     order = get_object_or_404(Order, code=order_code)
     order.delete()
     return JsonResponse({"ok": True})
+
+
+@staff_member_required(login_url="admin_panel:login")
+def export_orders_xlsx(request):
+    """Exporta TODOS los pedidos (no sólo los visibles) con ganancias mensuales."""
+    orders = Order.objects.all().order_by("created_at")
+    date_from = (request.GET.get("date_from") or "").strip()
+    date_to = (request.GET.get("date_to") or "").strip()
+    if date_from:
+        orders = orders.filter(created_at__date__gte=date_from)
+    if date_to:
+        orders = orders.filter(created_at__date__lte=date_to)
+
+    workbook = build_orders_workbook(orders)
+    response = HttpResponse(
+        workbook.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="reporte-volantines-strong.xlsx"'
+    return response

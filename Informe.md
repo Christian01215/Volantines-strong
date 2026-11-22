@@ -107,7 +107,7 @@ registro estructurado de pedidos y de un mecanismo de compra anticipada obliga
 a gestionar cada transacción de forma individual y secuencial.
 El presente informe documenta el diseño, desarrollo, validación y puesta en
 producción de una plataforma web de comercio electrónico con módulo de retiro
-en tienda (Click & Collect), construida sobre el framework Django 5.2LTS bajo el
+en tienda (Click & Collect), construida sobre el framework Django 6.1.3 con Python 3.12+ bajo el
 patrón arquitectónico Modelo-Vista-Template, con base de datos relacional
 PostgreSQL y una interfaz responsiva orientada a dispositivos móviles. El
 documento se estructura conforme al esquema oficial de Informe Final Proyecto SI
@@ -305,8 +305,10 @@ individual con su descripción y especificaciones técnicas, como medidas,
 materiales y resistencia.
 RF-04. Carrito de compras: El sistema debe incorporar un carrito de compras que
 permite agregar, eliminar y modificar productos.
-RF-05. Procesamiento de pagos: La plataforma debe permitir realizar pagos en
-línea.
+RF-05. Procesamiento de pagos: La plataforma debe permitir informar el pago
+mediante transferencia bancaria y adjuntar el comprobante correspondiente, que
+será revisado por el administrador antes de confirmar el pedido. No se incorpora
+una pasarela de pago automática dentro de este alcance.
 RF-06. Orden de preparación: Una vez confirmada la compra, el sistema debe
 generar automáticamente una orden de preparación del pedido con detalle del
 pedido.
@@ -663,6 +665,12 @@ producto, para identificar rotación y apoyar la reposición.
 3. Retiros programados: consolidado de pedidos listos por fecha y franja
 horaria, para organizar la preparación física y evitar aglomeraciones en el
 local.
+4. Ganancias mensuales: resumen de ingresos y ganancias por mes, con comparación
+respecto del mes anterior y del mismo mes del año anterior. La ganancia se calcula
+con el costo unitario registrado al momento de la venta.
+5. Exportación a Excel: genera un archivo con hojas de resumen mensual, pedidos,
+detalle por producto y categorías, considerando todos los pedidos del rango de
+fechas seleccionado.
 Los reportes se generan a partir de consultas agregadas sobre el esquema
 normalizado y se presentan en el panel con filtros por rango de fechas.
 Taller de Sistemas de Información • UTEM | Página
@@ -937,16 +945,15 @@ Taller de Sistemas de Información • UTEM | Página
 
 VOLANTINES STRONG | INFORME FINAL
 13.5. Estado del proyecto en la entrega final
-El proyecto se encuentra en su etapa final de desarrollo, con los principales
-componentes del sistema implementados y en proceso de revisión. Actualmente,
-se están realizando los últimos ajustes y validaciones antes de su puesta en
-producción. El catálogo de productos está en proceso de carga y organización.
-Entre las actividades pendientes se encuentra la publicación de la página web en
-el entorno de producción y la finalización de las configuraciones necesarias para
-su correcto funcionamiento. Las mejoras adicionales identificadas, como la
-integración de una pasarela de pago definitiva y la incorporación de reportes
-avanzados, quedan registradas como trabajo futuro y no forman parte del alcance
-comprometido para esta etapa.
+El proyecto se encuentra desplegado en Vercel y utiliza Supabase como base de
+datos y almacenamiento de archivos. El catálogo, el carrito, el checkout con
+comprobante de transferencia, el panel administrativo, el personalizador de
+carretes y los reportes avanzados se encuentran implementados y validados con
+pruebas automatizadas. Tras el último ciclo de correcciones queda pendiente
+publicar en Vercel la versión corregida, aplicar las migraciones de producción y
+verificar las variables de entorno de Storage y correo. La integración de una
+pasarela de pago automática permanece fuera del alcance comprometido; el flujo
+oficial es transferencia bancaria con revisión manual del comprobante.
 Taller de Sistemas de Información • UTEM | Página
 35
 

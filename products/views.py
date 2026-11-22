@@ -6,6 +6,7 @@ from django.views.decorators.http import require_POST
 
 from cart.models import CartItem
 from cart.services import get_or_create_cart
+from config.storage import StorageUploadError
 from config.validators import MAX_DESIGN_SIZE, DESIGN_TYPES, validate_upload
 
 from .models import Product, Category
@@ -55,7 +56,10 @@ def customize_upload(request, slug):
     if invalid:
         return JsonResponse({"ok": False, "message": invalid}, status=400)
 
-    url, name, error = upload_design(design, product.slug)
+    try:
+        url, name, error = upload_design(design, product.slug)
+    except StorageUploadError as exc:
+        return JsonResponse({"ok": False, "message": str(exc)}, status=500)
     cart = get_or_create_cart(request)
     CartItem.objects.create(
         cart=cart,

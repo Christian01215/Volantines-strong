@@ -123,10 +123,10 @@
 
           <div class="admin-field">
             <label>
-              Precio y stock *
+              Precio, costo y stock *
             </label>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;">
               <input
                 class="admin-input"
                 type="number"
@@ -141,6 +141,16 @@
               <input
                 class="admin-input"
                 type="number"
+                id="prod-cost" value="{{ editing_product.cost|default:'' }}"
+                 name="prod_cost"
+                min="0"
+                placeholder="Costo CLP"
+                aria-label="Costo en pesos chilenos"
+              >
+
+              <input
+                class="admin-input"
+                type="number"
                 id="prod-stock" value="{{ editing_product.stock|default:'' }}"
                  name="prod_stock"
                 min="0"
@@ -149,6 +159,10 @@
                 required
               >
             </div>
+
+            <p class="admin-hint">
+              El costo se usa para calcular la ganancia en los reportes.
+            </p>
           </div>
 
           <div class="admin-field">
@@ -303,7 +317,9 @@
                 <th>Producto</th>
                 <th>Categoría</th>
                 <th>Precio</th>
+                <th>Costo</th>
                 <th>Stock</th>
+                <th>Estado</th>
                 <th style="text-align:right;">Acciones</th>
               </tr>
             </thead>
@@ -315,12 +331,14 @@
                 data-name="{{ product.name }}"
                 data-category="{{ product.category_id }}"
                 data-price="{{ product.price }}"
+                data-cost="{{ product.cost }}"
                 data-stock="{{ product.stock }}"
                 data-specs="{{ product.specs }}"
                 data-description="{{ product.description }}"
                 data-image="{% if product.image_url %}{{ product.image_url }}{% elif product.image %}{{ product.image.url }}{% endif %}"
                 data-edit-url="{% url 'admin_panel:product_edit' product.pk %}"
                 data-delete-url="{% url 'admin_panel:product_delete' product.pk %}"
+                data-restore-url="{% url 'admin_panel:product_restore' product.pk %}"
               >
                 <td>
                   {% if product.image_url %}
@@ -332,14 +350,26 @@
                 </td>
                 <td>{{ product.category.name }}</td>
                 <td>${{ product.price_display }}</td>
+                <td>${{ product.cost|default:0 }}</td>
                 <td>{{ product.stock }}</td>
+                <td>
+                  {% if product.is_active %}
+                  <span style="color:#16a34a;font-weight:700;">Activo</span>
+                  {% else %}
+                  <span style="color:#f59e0b;font-weight:700;">Inactivo</span>
+                  {% endif %}
+                </td>
                 <td style="text-align:right;">
                   <button type="button" class="admin-btn secondary" data-action="edit-product">Editar</button>
-                  <button type="button" class="delete-order-btn" data-action="delete-product">Eliminar</button>
+                  {% if product.is_active %}
+                  <button type="button" class="delete-order-btn" data-action="delete-product">Desactivar</button>
+                  {% else %}
+                  <button type="button" class="admin-btn secondary" data-action="restore-product">Reactivar</button>
+                  {% endif %}
                 </td>
               </tr>
               {% empty %}
-              <tr><td colspan="5">No hay productos registrados.</td></tr>
+              <tr><td colspan="7">No hay productos registrados.</td></tr>
               {% endfor %}
             </tbody>
 
@@ -385,6 +415,7 @@
         type="button"
         id="export-orders-btn"
         class="admin-btn export-excel-btn"
+        data-url="{% url 'admin_panel:export_orders' %}?date_from={{ date_from }}&date_to={{ date_to }}"
     >
         ↓ Exportar Excel
     </button>
@@ -434,10 +465,23 @@
                   <div class="admin-order-row-actions">
                     {% if order.receipt_url %}
                     <a class="admin-btn secondary" href="{{ order.receipt_url }}" target="_blank" rel="noopener">Ver comprobante</a>
+                    {% else %}
+                    <span style="color:#777;font-size:12px;">Sin comprobante</span>
                     {% endif %}
-                    <button type="button" class="notify-order-btn" data-url="{% url 'admin_panel:order_notify' order.code %}" {% if not order.customer_email %}disabled{% endif %}>Notificar</button>
+                    <button type="button" class="notify-order-btn" data-url="{% url 'admin_panel:order_notify' order.code %}" {% if not order.customer_email %}disabled{% endif %}>Notificar cliente</button>
+                    <button type="button" class="notify-order-btn" data-url="{% url 'admin_panel:order_notify_owner' order.code %}">Aviso al dueño</button>
                     <button type="button" class="delete-order-btn" data-url="{% url 'admin_panel:order_delete' order.code %}">Eliminar</button>
                   </div>
+                  <p class="admin-hint" style="margin-top:6px;">
+                    {% if order.last_notified_at %}
+                    Último aviso: {{ order.last_notified_at|date:"d/m H:i" }} · {{ order.get_status_display }}
+                    {% else %}
+                    Sin avisos enviados
+                    {% endif %}
+                    {% if order.owner_notified_at %}
+                    · Dueño avisado {{ order.owner_notified_at|date:"d/m H:i" }}
+                    {% endif %}
+                  </p>
                 </td>
               </tr>
               {% empty %}
@@ -474,7 +518,7 @@
             </h2>
 
             <p>
-              Pedidos por estado, ventas por categoría y retiros programados.
+              Ganancias por mes, ventas por categoría, pedidos por estado y retiros programados.
             </p>
           </div>
 
@@ -492,6 +536,38 @@
         </div>
 
         <div class="admin-report-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;margin-top:24px;">
+
+          <div class="admin-table-wrap" style="padding:18px;grid-column:1/-1;">
+            <h3 style="color:#f6efe6;font-size:13px;letter-spacing:.12em;margin-bottom:14px;">
+              GANANCIAS POR MES · COMPARACIÓN MENSUAL Y ANUAL
+            </h3>
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Mes</th>
+                  <th>Pedidos</th>
+                  <th>Ingresos</th>
+                  <th>Ganancia</th>
+                  <th>Ganancia vs mes anterior</th>
+                  <th>Ganancia vs año anterior</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in monthly_summary %}
+                <tr>
+                  <td><strong>{{ row.label }}</strong></td>
+                  <td>{{ row.orders }}</td>
+                  <td>${{ row.revenue|stringformat:"i" }}</td>
+                  <td><strong>${{ row.profit|stringformat:"i" }}</strong></td>
+                  <td>{{ row.profit_mom }}</td>
+                  <td>{{ row.profit_yoy }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6">Sin datos para el período.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
 
           <div class="admin-table-wrap" style="padding:18px;">
             <h3 style="color:#f6efe6;font-size:13px;letter-spacing:.12em;margin-bottom:14px;">PEDIDOS POR ESTADO</h3>

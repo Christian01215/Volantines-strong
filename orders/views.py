@@ -10,18 +10,21 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
 from cart.services import clear_cart, get_or_create_cart
+from config.storage import StorageUploadError
 from config.validators import (
     MAX_RECEIPT_SIZE,
     RECEIPT_TYPES,
     validate_customer_data,
     validate_upload,
 )
+from django.utils import timezone
 from products.models import Product
 
 from .models import Order, OrderItem
 from .services import (
     send_customer_confirmation,
     send_owner_notification,
+    update_order_status,
     upload_receipt,
 )
 
@@ -53,7 +56,7 @@ def generate_order_from_cart(request):
 
 
 @transaction.atomic
-def _create_order_from_cart(request, cart):
+def _create_order_from_cart(request, cart, code=None, receipt_url="", receipt_name=""):
     """Crea la orden a partir del carrito del servidor. Debe llamarse dentro de atomic().
 
     El carrito (y por lo tanto la sesión) se crea fuera de esta transacción:
@@ -86,7 +89,7 @@ def _create_order_from_cart(request, cart):
     total = sum(product.price * item.quantity for item, product in validated)
 
     order = Order.objects.create(
-        code=_new_order_code(),
+        code=code or _new_order_code(),
         customer_name=request.POST.get("customer_name", "").strip(),
         customer_rut=request.POST.get("customer_rut", "").strip(),
         customer_phone=request.POST.get("customer_phone", "").strip(),
@@ -98,6 +101,8 @@ def _create_order_from_cart(request, cart):
         total=total,
         status="pendiente",
         cart=cart,
+        receipt_url=receipt_url,
+        receipt_name=receipt_name,
     )
 
     for item, product in validated:
@@ -106,6 +111,7 @@ def _create_order_from_cart(request, cart):
             product=product,
             quantity=item.quantity,
             price=product.price,
+            cost=product.cost,
             design_url=item.design_url,
             design_name=item.design_name,
         )
@@ -138,23 +144,41 @@ def checkout_submit(request):
         return _error(request, " ".join(errors))
 
     cart = get_or_create_cart(request)
+    if not cart.items.exists():
+        return _error(request, "El carrito está vacío")
+
+    # El código se genera antes de subir el comprobante para que la ruta del
+    # archivo y el pedido queden vinculados desde el primer momento.
+    code = _new_order_code()
     try:
-        order = _create_order_from_cart(request, cart)
+        receipt_url, receipt_name, receipt_content, receipt_mimetype = upload_receipt(
+            request.FILES["receipt"], code
+        )
+    except StorageUploadError as exc:
+        logger.warning("No se pudo guardar el comprobante del pedido %s: %s", code, exc)
+        return _error(request, str(exc), status=500)
+    except Exception as exc:
+        logger.exception("Error inesperado al subir el comprobante de %s: %s", code, exc)
+        return _error(request, "No se pudo guardar el comprobante. Intenta nuevamente.", status=500)
+
+    try:
+        order = _create_order_from_cart(
+            request,
+            cart,
+            code=code,
+            receipt_url=receipt_url,
+            receipt_name=receipt_name,
+        )
     except ValueError as exc:
         return _error(request, str(exc))
-
-    receipt_url, receipt_name, receipt_content, receipt_mimetype = upload_receipt(
-        request.FILES["receipt"], order.code
-    )
-    order.receipt_url = receipt_url
-    order.receipt_name = receipt_name
-    order.save(update_fields=["receipt_url", "receipt_name"])
 
     email_sent = True
     try:
         send_owner_notification(
             order, receipt_url, receipt_name, receipt_content, receipt_mimetype
         )
+        order.owner_notified_at = timezone.now()
+        order.save(update_fields=["owner_notified_at"])
     except Exception as exc:
         email_sent = False
         logger.exception("No se pudo enviar el aviso de la orden %s: %s", order.code, exc)
@@ -180,6 +204,7 @@ def checkout_submit(request):
         "email_sent": email_sent,
         "customer_email_sent": customer_email_sent,
         "message": message,
+        "receipt_url": order.receipt_url,
         "redirect": reverse("orders:success", kwargs={"code": order.code}),
     })
 
@@ -195,7 +220,7 @@ def order_track(request):
     order = None
     error = ""
     if code:
-        order = Order.objects.filter(code=code).first()
+        order = Order.objects.prefetch_related("items__product").filter(code=code).first()
         if order is None:
             error = "No encontramos un pedido con ese código. Revisa los caracteres e intenta nuevamente."
     return render(
@@ -206,7 +231,9 @@ def order_track(request):
 
 
 def order_track_detail(request, code):
-    order = get_object_or_404(Order, code=code)
+    order = get_object_or_404(
+        Order.objects.prefetch_related("items__product"), code=code
+    )
     return render(request, "orders/track.html", {"order": order, "code": code})
 
 
@@ -228,10 +255,12 @@ def admin_order_update(request, order_code):
     order = get_object_or_404(Order, code=order_code)
     if request.method == "POST":
         new_status = request.POST.get("status")
-        if new_status in dict(Order.STATUS_CHOICES):
-            order.status = new_status
-            order.save(update_fields=["status"])
-            messages.success(request, f"Estado actualizado a {order.get_status_display()}")
-        else:
+        try:
+            result = update_order_status(order, new_status)
+        except ValueError:
             messages.error(request, "Estado inválido.")
+        else:
+            messages.success(request, result["message"])
+            if result["warning"]:
+                messages.warning(request, result["warning"])
     return redirect("orders:admin_list")

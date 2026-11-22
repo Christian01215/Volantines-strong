@@ -1,5 +1,6 @@
 """Panel de administración: permisos, slug único y rutas de pedidos."""
 from datetime import date, timedelta
+from io import BytesIO
 import tempfile
 
 from django.contrib.auth.models import User
@@ -7,6 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
+from openpyxl import load_workbook
 
 from orders.models import Order, OrderItem
 from products.models import Category, Product
@@ -109,6 +111,105 @@ class AdminPanelTests(TestCase):
 
         self.client.post(url, {"status": "listo_para_retiro"})
         self.assertEqual(len(mail.outbox), 1)
+
+    def test_status_changes_notify_each_transition_once(self):
+        order = Order.objects.create(
+            code="VC66666666",
+            customer_name="Cliente Estados",
+            customer_email="estados@example.com",
+            total=15000,
+        )
+        url = reverse("admin_panel:order_status_update", args=[order.code])
+
+        for status in ["pago_confirmado", "preparando", "listo_para_retiro"]:
+            response = self.client.post(url, {"status": status})
+            self.assertTrue(response.json()["ok"])
+
+        self.assertEqual(len(mail.outbox), 3)
+        subjects = " ".join(message.subject for message in mail.outbox)
+        self.assertIn("Pago confirmado", subjects)
+        self.assertIn("preparando", subjects.lower())
+        self.assertIn("listo", subjects.lower())
+
+        # Repetir el mismo estado no genera otro correo.
+        self.client.post(url, {"status": "listo_para_retiro"})
+        self.assertEqual(len(mail.outbox), 3)
+
+    def test_product_delete_is_soft_and_can_be_restored(self):
+        product = Product.objects.create(
+            name="Producto temporal",
+            slug="producto-temporal",
+            category=self.category,
+            price=1000,
+            cost=400,
+            stock=2,
+        )
+        delete_url = reverse("admin_panel:product_delete", args=[product.pk])
+        restore_url = reverse("admin_panel:product_restore", args=[product.pk])
+
+        response = self.client.post(delete_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 200)
+        product.refresh_from_db()
+        self.assertFalse(product.is_active)
+
+        catalog = self.client.get(reverse("products:catalog"))
+        visible_names = [item.name for item in catalog.context["products"]]
+        self.assertNotIn("Producto temporal", visible_names)
+
+        response = self.client.post(restore_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertTrue(response.json()["ok"])
+        product.refresh_from_db()
+        self.assertTrue(product.is_active)
+
+    def test_owner_notification_retry_sets_timestamp(self):
+        order = Order.objects.create(
+            code="VC77777777",
+            customer_name="Cliente Aviso Dueño",
+            total=12000,
+            receipt_url="https://example.com/comprobante.png",
+        )
+        url = reverse("admin_panel:order_notify_owner", args=[order.code])
+
+        response = self.client.post(url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ok"])
+        order.refresh_from_db()
+        self.assertIsNotNone(order.owner_notified_at)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["ctorresj@utem.cl"])
+
+    def test_export_orders_xlsx_includes_profit_summary(self):
+        product = Product.objects.create(
+            name="Producto Excel",
+            slug="producto-excel",
+            category=self.category,
+            price=10000,
+            cost=6000,
+            stock=3,
+        )
+        order = Order.objects.create(
+            code="VC88888888",
+            customer_name="Cliente Excel",
+            total=20000,
+        )
+        OrderItem.objects.create(
+            order=order, product=product, quantity=2, price=10000, cost=6000
+        )
+
+        response = self.client.get(reverse("admin_panel:export_orders"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("spreadsheetml.sheet", response["Content-Type"])
+        workbook = load_workbook(BytesIO(response.content))
+        self.assertEqual(
+            workbook.sheetnames,
+            ["Resumen mensual", "Pedidos", "Detalle por producto", "Categorías"],
+        )
+        detail = workbook["Detalle por producto"]
+        self.assertEqual(detail["I2"].value, 8000)
+        categories = workbook["Categorías"]
+        self.assertEqual(categories["D2"].value, 8000)
 
     def test_reports_in_dashboard(self):
         product = Product.objects.create(

@@ -137,6 +137,64 @@ class CheckoutFlowTests(TestCase):
         self.assertIn("Formato no permitido", response.json()["message"])
         self.assertEqual(Order.objects.count(), 0)
 
+    def test_checkout_snapshots_product_cost_for_profit(self):
+        self.product.cost = 10000
+        self.product.save(update_fields=["cost"])
+        self._fill_cart(2)
+
+        response = self.client.post(
+            reverse("orders:checkout"),
+            self._checkout_payload(),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        order = Order.objects.get(code=response.json()["code"])
+        item = order.items.get()
+
+        self.assertEqual(item.cost, 10000)
+        self.assertEqual(item.line_profit, 30000)
+        self.assertEqual(order.total_profit, 30000)
+
+    def test_storage_failure_returns_json_instead_of_html_500(self):
+        self._fill_cart(1)
+        with self.settings(
+            ALLOW_LOCAL_STORAGE_FALLBACK=False,
+            SUPABASE_URL="",
+            SUPABASE_KEY="",
+            SUPABASE_RECEIPTS_BUCKET="payment-receipts",
+        ):
+            response = self.client.post(
+                reverse("orders:checkout"),
+                self._checkout_payload(),
+                HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            )
+
+        self.assertEqual(response.status_code, 500)
+        self.assertIn("application/json", response["Content-Type"])
+        self.assertFalse(response.json()["ok"])
+        self.assertEqual(Order.objects.count(), 0)
+
+    def test_track_and_success_pages_show_products_and_receipt(self):
+        self._fill_cart(1)
+        response = self.client.post(
+            reverse("orders:checkout"),
+            self._checkout_payload(),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        payload = response.json()
+        code = payload["code"]
+
+        success = self.client.get(reverse("orders:success", args=[code]))
+        self.assertEqual(success.status_code, 200)
+        self.assertContains(success, "Carrete prueba")
+        self.assertContains(success, "Ver comprobante de pago")
+
+        track = self.client.get(reverse("orders:track_detail", args=[code]))
+        self.assertEqual(track.status_code, 200)
+        self.assertContains(track, "Carrete prueba")
+        self.assertContains(track, "Productos comprados")
+        self.assertContains(track, "Ver comprobante de pago")
+        self.assertTrue(payload["receipt_url"])
+
     def test_success_page(self):
         self._fill_cart(1)
         response = self.client.post(
