@@ -53,7 +53,7 @@ def upload_receipt(receipt, order_code):
         content,
         path,
         mimetype,
-        settings.SUPABASE_RECEIPTS_BUCKET,
+        "",
         f"el comprobante del pedido {order_code}",
     )
     return result.final_url, filename, content, mimetype

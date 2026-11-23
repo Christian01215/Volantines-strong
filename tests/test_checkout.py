@@ -11,10 +11,10 @@ from products.models import Category, Product
 
 
 @override_settings(
-    SUPABASE_URL="",
-    SUPABASE_KEY="",
-    SUPABASE_STORAGE_BUCKET="",
-    SUPABASE_RECEIPTS_BUCKET="",
+    CLOUDINARY_CLOUD_NAME="",
+    CLOUDINARY_API_KEY="",
+    CLOUDINARY_API_SECRET="",
+    CLOUDINARY_URL="",
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
 )
 class CheckoutFlowTests(TestCase):
@@ -176,9 +176,10 @@ class CheckoutFlowTests(TestCase):
         self._fill_cart(1)
         with self.settings(
             ALLOW_LOCAL_STORAGE_FALLBACK=False,
-            SUPABASE_URL="",
-            SUPABASE_KEY="",
-            SUPABASE_RECEIPTS_BUCKET="payment-receipts",
+            CLOUDINARY_CLOUD_NAME="",
+            CLOUDINARY_API_KEY="",
+            CLOUDINARY_API_SECRET="",
+            CLOUDINARY_URL="",
         ):
             response = self.client.post(
                 reverse("orders:checkout"),

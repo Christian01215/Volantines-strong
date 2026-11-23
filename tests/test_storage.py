@@ -1,4 +1,4 @@
-"""Pruebas de la capa centralizada de subida a Supabase Storage."""
+"""Pruebas de la capa centralizada de subida a Cloudinary."""
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
@@ -7,46 +7,41 @@ from config.storage import StorageUploadError, save_upload
 
 
 @override_settings(
-    SUPABASE_URL="https://example.supabase.co",
-    SUPABASE_KEY="service-role-test-key",
-    SUPABASE_STORAGE_BUCKET="product-images",
-    SUPABASE_RECEIPTS_BUCKET="payment-receipts",
+    CLOUDINARY_CLOUD_NAME="demo",
+    CLOUDINARY_API_KEY="key",
+    CLOUDINARY_API_SECRET="secret",
+    CLOUDINARY_URL="",
     ALLOW_LOCAL_STORAGE_FALLBACK=False,
 )
 class StorageUploadTests(TestCase):
-    def test_upload_is_explicitly_not_upsert(self):
-        client = MagicMock()
-        bucket = client.storage.from_.return_value
-        bucket.get_public_url.return_value = "https://example.supabase.co/receipt.png"
+    def test_upload_returns_secure_url(self):
+        fake_result = {"secure_url": "https://res.cloudinary.com/demo/image/upload/v1/receipt.png"}
 
-        with patch("config.storage.supabase.create_client", return_value=client):
+        with patch("config.storage.cloudinary.uploader.upload", return_value=fake_result) as upload:
             result = save_upload(
                 b"contenido", "receipts/VC1/receipt.png", "image/png",
-                "payment-receipts", "el comprobante del pedido VC1",
+                "", "el comprobante del pedido VC1",
             )
 
-        client.storage.from_.assert_called_once_with("payment-receipts")
-        args = bucket.upload.call_args.args
-        self.assertEqual(args[0], "receipts/VC1/receipt.png")
-        self.assertEqual(args[1], b"contenido")
-        self.assertEqual(args[2]["content-type"], "image/png")
-        self.assertEqual(args[2]["x-upsert"], "false")
-        self.assertEqual(result.url, "https://example.supabase.co/receipt.png")
+        self.assertEqual(result.url, "https://res.cloudinary.com/demo/image/upload/v1/receipt.png")
+        upload.assert_called_once()
+        # No se fuerza sobrescritura (no upsert).
+        self.assertFalse(upload.call_args.kwargs.get("overwrite", False))
 
-    def test_rls_error_explains_service_role_requirement(self):
-        rls_error = (
-            "{'statusCode': 403, 'error': 'Unauthorized', "
-            "'message': 'new row violates row-level security policy'}"
-        )
-
-        with patch("config.storage.supabase.create_client", side_effect=Exception(rls_error)):
-            with self.assertRaises(StorageUploadError) as raised:
+    def test_upload_error_raises_storage_upload_error(self):
+        with patch("config.storage.cloudinary.uploader.upload", side_effect=Exception("boom")):
+            with self.assertRaises(StorageUploadError):
                 save_upload(
                     b"contenido", "receipts/VC1/receipt.png", "image/png",
-                    "payment-receipts", "el comprobante del pedido VC1",
+                    "", "el comprobante del pedido VC1",
                 )
 
-        message = str(raised.exception)
-        self.assertIn("payment-receipts", message)
-        self.assertIn("service_role", message)
-        self.assertIn("RLS", message)
+    def test_local_fallback_when_not_configured(self):
+        with override_settings(ALLOW_LOCAL_STORAGE_FALLBACK=True, CLOUDINARY_CLOUD_NAME="", CLOUDINARY_API_KEY="", CLOUDINARY_API_SECRET="", CLOUDINARY_URL=""):
+            with patch("config.storage.default_storage.save", return_value="receipts/VC1/receipt.png"):
+                result = save_upload(
+                    b"contenido", "receipts/VC1/receipt.png", "image/png",
+                    "", "el comprobante del pedido VC1",
+                )
+        self.assertEqual(result.local_path, "receipts/VC1/receipt.png")
+        self.assertEqual(result.url, "")

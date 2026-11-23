@@ -23,7 +23,7 @@ def upload_design(file, slug):
         content,
         path,
         mimetype,
-        settings.SUPABASE_DESIGNS_BUCKET,
+        "",
         f"el diseño de {slug}",
     )
     return result.final_url, filename, result.error

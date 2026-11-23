@@ -1,15 +1,18 @@
-"""Subida centralizada de archivos a Supabase Storage.
+"""Subida centralizada de archivos a Cloudinary.
 
 Toda subida pasa por aquí para que el comportamiento sea el mismo en productos,
-comprobantes y diseños: en producción se exige Supabase; en desarrollo se
+comprobantes y diseños: en producción se exige Cloudinary; en desarrollo se
 permite un fallback local controlado.
 """
+import io
 import logging
+import os
 from dataclasses import dataclass
+from pathlib import Path
 
-import supabase
+import cloudinary
+import cloudinary.uploader
 from django.conf import settings
-from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
 logger = logging.getLogger(__name__)
@@ -23,7 +26,7 @@ class StorageUploadError(Exception):
 class UploadResult:
     """Resultado de guardar un archivo.
 
-    ``url`` es la URL pública cuando se sube a Supabase. Cuando se usa el
+    ``url`` es la URL pública cuando se sube a Cloudinary. Cuando se usa el
     fallback local, ``local_path`` tiene la ruta y ``url`` queda vacía.
     """
 
@@ -36,68 +39,96 @@ class UploadResult:
         if self.url:
             return self.url
         if self.local_path:
-            return default_storage.url(self.local_path)
+            return self.local_path
         return ""
 
-    @property
-    def used_local(self):
-        return bool(self.local_path)
+
+def _cloudinary_configured():
+    if os.environ.get("CLOUDINARY_URL"):
+        return True
+    cloud_name = getattr(settings, "CLOUDINARY_CLOUD_NAME", "") or os.environ.get(
+        "CLOUDINARY_CLOUD_NAME", ""
+    )
+    api_key = getattr(settings, "CLOUDINARY_API_KEY", "") or os.environ.get(
+        "CLOUDINARY_API_KEY", ""
+    )
+    api_secret = getattr(settings, "CLOUDINARY_API_SECRET", "") or os.environ.get(
+        "CLOUDINARY_API_SECRET", ""
+    )
+    return bool(cloud_name and api_key and api_secret)
 
 
-def _fallback_allowed():
-    return bool(getattr(settings, "ALLOW_LOCAL_STORAGE_FALLBACK", False))
+def _configure_cloudinary():
+    cloudinary_url = os.environ.get("CLOUDINARY_URL") or getattr(
+        settings, "CLOUDINARY_URL", ""
+    )
+    if cloudinary_url:
+        cloudinary.config(cloudinary_url=cloudinary_url, secure=True)
+        return
+    cloudinary.config(
+        cloud_name=getattr(settings, "CLOUDINARY_CLOUD_NAME", "")
+        or os.environ.get("CLOUDINARY_CLOUD_NAME", ""),
+        api_key=getattr(settings, "CLOUDINARY_API_KEY", "")
+        or os.environ.get("CLOUDINARY_API_KEY", ""),
+        api_secret=getattr(settings, "CLOUDINARY_API_SECRET", "")
+        or os.environ.get("CLOUDINARY_API_SECRET", ""),
+        secure=True,
+    )
 
 
-def _friendly_error(error):
-    """Traduce el error de RLS de Supabase a una acción concreta."""
-    lowered = error.lower()
-    if "row-level security" in lowered or "rls" in lowered:
-        return (
-            "Supabase rechazó la subida por RLS. Verifica que SUPABASE_KEY sea la "
-            "service_role/secret key (no anon/publishable) y que el bucket permita INSERT"
-        )
-    return error
+def _public_id(path):
+    # Cloudinary agrega la extensión según el formato; el public_id no debe
+    # incluirla para evitar duplicados tipo "foo.png.png".
+    return Path(path).with_suffix("").as_posix()
 
 
-def save_upload(content, path, mimetype, bucket, label):
-    """Guarda ``content`` en ``bucket`` y devuelve :class:`UploadResult`.
+def save_upload(content, path, mimetype, bucket="", label="el archivo"):
+    """Sube ``content`` a Cloudinary y devuelve un ``UploadResult``.
 
-    Si Supabase no está configurado o falla, sólo se usa almacenamiento local
-    cuando ``ALLOW_LOCAL_STORAGE_FALLBACK`` está activo. De lo contrario se
-    lanza :class:`StorageUploadError` con un mensaje claro.
+    ``bucket`` se conserva por compatibilidad con la API anterior de Supabase
+    pero no se usa: Cloudinary organiza los recursos por carpetas dentro del
+    ``public_id`` (que ya incluye la ruta).
     """
-    mimetype = mimetype or "application/octet-stream"
-    error = ""
+    del bucket  # compatibilidad con la firma anterior
 
-    if settings.SUPABASE_URL and settings.SUPABASE_KEY and bucket:
-        try:
-            client = supabase.create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-            storage_bucket = client.storage.from_(bucket)
-            upload_options = {"content-type": mimetype, "x-upsert": "false"}
-            storage_bucket.upload(path, content, upload_options)
-            return UploadResult(url=storage_bucket.get_public_url(path))
-        except Exception as exc:
-            error = str(exc)
-            logger.exception("No se pudo subir %s al bucket '%s': %s", label, bucket, exc)
-            if not _fallback_allowed():
-                raise StorageUploadError(
-                    f"No se pudo subir {label} a Supabase Storage ({bucket}): "
-                    f"{_friendly_error(error)}"
-                ) from exc
+    # Normalizar content a bytes.
+    if isinstance(content, (bytes, bytearray)):
+        data = bytes(content)
     else:
-        error = f"Supabase Storage no está configurado para {label}."
-        logger.warning(error)
-        if not _fallback_allowed():
-            raise StorageUploadError(
-                f"{error} Configura SUPABASE_URL, SUPABASE_KEY y el bucket en Vercel."
-            )
+        try:
+            content.seek(0)
+        except Exception:
+            pass
+        data = content.read() if hasattr(content, "read") else bytes(content)
+
+    if not _cloudinary_configured():
+        if getattr(settings, "ALLOW_LOCAL_STORAGE_FALLBACK", False):
+            saved_path = default_storage.save(path, content if not isinstance(content, (bytes, bytearray)) else __import__("django.core.files.base", fromlist=["ContentFile"]).ContentFile(data))
+            return UploadResult(local_path=saved_path)
+        raise StorageUploadError(
+            f"No se pudo subir {label}: Cloudinary no está configurado "
+            "y el fallback local está desactivado."
+        )
 
     try:
-        local_path = default_storage.save(path, ContentFile(content))
+        _configure_cloudinary()
+        public_id = _public_id(path)
+        result = cloudinary.uploader.upload(
+            io.BytesIO(data),
+            public_id=public_id,
+            resource_type="auto",
+            overwrite=False,
+            unique_filename=False,
+            use_filename=False,
+            format=None,
+        )
+        url = result.get("secure_url") or result.get("url") or ""
+        if not url:
+            raise StorageUploadError(f"No se obtuvo URL pública para {label}.")
+        return UploadResult(url=url)
+    except StorageUploadError:
+        raise
     except Exception as exc:
-        logger.exception("No se pudo guardar %s en almacenamiento local: %s", label, exc)
-        raise StorageUploadError(
-            f"No se pudo guardar {label}: {exc}. Revisa la configuración de Storage."
-        ) from exc
-
-    return UploadResult(local_path=local_path, error=error)
+        logger.exception("Error subiendo %s a Cloudinary", label)
+        message = getattr(exc, "message", None) or str(exc)
+        raise StorageUploadError(f"No se pudo subir {label} a Cloudinary: {message}")

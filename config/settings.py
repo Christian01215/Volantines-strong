@@ -30,15 +30,14 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
-# Credenciales de Supabase (Storage / SDK)
-SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
-SUPABASE_KEY = os.environ.get('SUPABASE_KEY', '')
-SUPABASE_STORAGE_BUCKET = os.environ.get('SUPABASE_STORAGE_BUCKET', 'product-images')
-SUPABASE_RECEIPTS_BUCKET = os.environ.get('SUPABASE_RECEIPTS_BUCKET', 'payment-receipts')
-SUPABASE_DESIGNS_BUCKET = os.environ.get('SUPABASE_DESIGNS_BUCKET', 'custom-designs')
+# Credenciales de Cloudinary (almacenamiento de imágenes, comprobantes y diseños).
+CLOUDINARY_URL = os.environ.get('CLOUDINARY_URL', '').strip()
+CLOUDINARY_CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME', '').strip()
+CLOUDINARY_API_KEY = os.environ.get('CLOUDINARY_API_KEY', '').strip()
+CLOUDINARY_API_SECRET = os.environ.get('CLOUDINARY_API_SECRET', '').strip()
 
 # En Vercel el disco es efímero: nunca se debe caer al guardado local.
-# En desarrollo/tests se mantiene el fallback para poder trabajar sin Supabase.
+# En desarrollo/tests se mantiene el fallback para poder trabajar sin Cloudinary.
 ALLOW_LOCAL_STORAGE_FALLBACK = os.environ.get(
     'ALLOW_LOCAL_STORAGE_FALLBACK', str(DEBUG)
 ).lower() in ('1', 'true', 'yes', 'on')

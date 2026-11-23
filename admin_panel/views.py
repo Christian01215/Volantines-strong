@@ -63,7 +63,7 @@ def _upload_image(file, product_pk, gallery=False):
         content,
         path,
         mimetype,
-        settings.SUPABASE_STORAGE_BUCKET,
+        "",
         f"la imagen {suffix} de {filename}",
     )
     return result.url, result.local_path, result.error

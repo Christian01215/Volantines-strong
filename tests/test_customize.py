@@ -11,7 +11,7 @@ from orders.models import Order
 from products.models import Category, Product
 
 
-@override_settings(SUPABASE_URL="", SUPABASE_KEY="", SUPABASE_DESIGNS_BUCKET="")
+@override_settings(CLOUDINARY_CLOUD_NAME="", CLOUDINARY_API_KEY="", CLOUDINARY_API_SECRET="", CLOUDINARY_URL="")
 class CustomizerAndTrackingTests(TestCase):
     @classmethod
     def setUpTestData(cls):

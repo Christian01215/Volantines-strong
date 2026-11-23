@@ -50,7 +50,7 @@ class AdminPanelTests(TestCase):
     def test_product_creation_saves_main_image_and_gallery(self):
         temp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(temp_dir.cleanup)
-        with self.settings(MEDIA_ROOT=temp_dir.name, SUPABASE_URL="", SUPABASE_KEY=""):
+        with self.settings(MEDIA_ROOT=temp_dir.name, CLOUDINARY_CLOUD_NAME="", CLOUDINARY_API_KEY="", CLOUDINARY_API_SECRET="", CLOUDINARY_URL=""):
             response = self.client.post(
                 reverse("admin_panel:product_save"),
                 {
