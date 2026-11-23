@@ -333,3 +333,6 @@ El checkout creates session dentro de `transaction.atomic`; al fallar, el rollba
 - Bug del código de seguimiento corregido: `cart.js` ya no llama a `StrongCart.clear()` después de pintar el código; usa `apply({items:[],count:0,total:0})` antes, porque el backend ya vacía el carrito.
 - Eliminación definitiva de productos agregada: `admin_panel:product_purge` borra el producto sólo si no tiene `OrderItem`s; si aparece en pedidos devuelve 400 y sugiere usar "Desactivar". Botón visible sólo para productos inactivos.
 - 2 pruebas nuevas en `tests/test_admin.py`. Total: **33 pruebas OK**.
+- Commit `2687b6e` pusheado y desplegado en `dpl_Br3exveeLKyyQ8zc8t9ywT3TgZKf`.
+- Smoke en producción: `/health`, `/`, `/cart/api/` y `/admin-panel/login/` → 200; logs sin errores.
+- Pendiente del usuario: copiar `.env.example` a `.env`, completarlo con los valores reales y ejecutar `scripts/sync_vercel_env.ps1` si quiere recargar todas las variables desde cero; luego re-subir las fotos de los 7 productos sin imagen.
