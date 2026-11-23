@@ -336,3 +336,28 @@ El checkout creates session dentro de `transaction.atomic`; al fallar, el rollba
 - Commit `2687b6e` pusheado y desplegado en `dpl_Br3exveeLKyyQ8zc8t9ywT3TgZKf`.
 - Smoke en producción: `/health`, `/`, `/cart/api/` y `/admin-panel/login/` → 200; logs sin errores.
 - Pendiente del usuario: copiar `.env.example` a `.env`, completarlo con los valores reales y ejecutar `scripts/sync_vercel_env.ps1` si quiere recargar todas las variables desde cero; luego re-subir las fotos de los 7 productos sin imagen.
+
+## 16. Fase 0 — Línea base y diagnóstico — 23/11/2026
+
+Estado: **línea base completada; pendiente reproducir una subida real para capturar el código HTTP exacto.**
+
+- Rama de trabajo: `fix/uploads-email-admin`, creada desde `main`. Sin cambios de código todavía.
+- `python manage.py check` → OK.
+- `python manage.py test tests` → **33 pruebas OK** (6,3 s).
+- Vercel CLI 66.6.0 autenticada; proyecto `fclass-utem/volantines-strong`.
+- Variables en Vercel: existen las esperadas en Production/Preview. Las marcadas como `Secret` no se pueden leer con `vercel env pull`; solo se ve el nombre. Por eso no se pudo clasificar `SUPABASE_KEY` de producción desde la CLI.
+- `.env` local: 18 variables; **`SUPABASE_KEY` es anon/publishable** (no sirve para subir), faltan `SUPABASE_RECEIPTS_BUCKET` y `SUPABASE_DESIGNS_BUCKET`, y `DEBUG=True`. Eso explica que `check_storage` local no liste buckets. No usar este `.env` para diagnosticar producción.
+- Supabase (consulta SQL de solo lectura):
+  - Buckets `product-images`, `payment-receipts`, `custom-designs`: existen y son públicos.
+  - Políticas `INSERT`/`SELECT` para `anon` en los tres buckets; `WITH CHECK` correcto por bucket.
+  - Objetos: `payment-receipts` 4; `product-images` 0; `custom-designs` 0.
+  - Antes de la limpieza manual: 6 productos (5 sin imagen, 1 con imagen local `/media/...`), 3 pedidos (todos con comprobante remoto, 0 con `owner_notified_at`).
+  - Después de la limpieza manual: 0 productos, 0 pedidos; quedan 69 carritos. Confirmado en logs de Vercel con POST a `productos/<id>/eliminar-definitivo/` y `pedidos/<code>/eliminar/`.
+- Evidencia de producción: `GET /media/products/3/main/IMG_5870.jpg` → **404** repetido. Vercel no sirve `media/`; las imágenes locales no existen en producción.
+- Evidencia de borrado: `POST /admin-panel/productos/3/eliminar-definitivo/` → **400** mientras el producto tenía pedidos; después de borrar los pedidos → **200**. El guard actual funciona.
+- Respaldo: `manage.py dumpdata` guardado en `C:\Users\atun0\AppData\Local\Temp\opencode\volantines_backup_fase0.json` (15,6 KB). No hay `pg_dump` instalado.
+- Pendiente:
+  1. Reproducir una subida en producción con una imagen pequeña (~500 KB) y otra grande (~3 MB), y capturar el código HTTP exacto (`413`, `403`, `404` o `400`).
+  2. Confirmar en Vercel el valor real de `SUPABASE_STORAGE_BUCKET` (debe ser `product-images`, no `products-images`).
+  3. Confirmar el estado del dominio en Resend (sandbox vs dominio verificado).
+- Siguiente fase: **Fase 1 — Entorno y diagnóstico**.
