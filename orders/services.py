@@ -104,6 +104,7 @@ def send_owner_notification(order, receipt_url, receipt_name, receipt_content, r
         body=text_body,
         from_email=settings.DEFAULT_FROM_EMAIL,
         to=[recipient],
+        reply_to=[order.customer_email] if order.customer_email else None,
     )
     email.attach_alternative(html_body, "text/html")
     if receipt_content and receipt_name:
@@ -229,6 +230,7 @@ def _send_customer_email(order, subject, lines):
         body=text_body,
         from_email=settings.DEFAULT_FROM_EMAIL,
         to=[order.customer_email],
+        reply_to=[settings.ADMIN_EMAIL] if settings.ADMIN_EMAIL else None,
     )
     email.attach_alternative(html_body, "text/html")
     email.send(fail_silently=False)

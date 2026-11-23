@@ -3,7 +3,7 @@
 Carga las variables de .env en Vercel (Production + Preview) sin imprimir secretos.
 
 USO
-  1) Copiá .env.example a .env y completá todos los valores.
+  1) Completá .env con todos los valores reales.
   2) Desde la raíz del proyecto:
        powershell -File scripts/sync_vercel_env.ps1
   3) Después:
@@ -18,7 +18,7 @@ param(
 )
 
 if (-not (Test-Path -LiteralPath $EnvFile)) {
-    Write-Error "No existe $EnvFile. Copiá .env.example a .env y completalo primero."
+    Write-Error "No existe $EnvFile. Creá .env y completalo primero."
     exit 1
 }
 

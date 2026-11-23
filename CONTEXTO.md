@@ -366,3 +366,16 @@ Estado: **línea base completada; pendiente reproducir una subida real para capt
   2. Confirmar el estado del dominio en Resend (sandbox vs dominio verificado).
   3. Confirmar si `SUPABASE_KEY` de producción es `service_role`/secret (no se puede leer por CLI porque está marcada como `Secret`).
 - Siguiente fase: **Fase 1 — Entorno y diagnóstico**.
+
+## 17. Migración de Resend a Gmail SMTP — 23/11/2026
+
+- Se eliminó `config/email_backends.py` y toda referencia a `RESEND_API_KEY`.
+- `config/settings.py` ahora configura SMTP: `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `EMAIL_USE_SSL`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` y `EMAIL_TIMEOUT`. Si hay credenciales usa SMTP; si no, el backend de consola.
+- `ADMIN_EMAIL` y `DEFAULT_FROM_EMAIL` quedan en `ctorresj@utem.cl`.
+- `orders/services.py` agrega `Reply-To`: el aviso al dueño responde al cliente y la confirmación al cliente responde al administrador.
+- Nuevo comando `python manage.py check_email`, con `--no-send` y `--to`.
+- Prueba local: `check_email --no-send` → conexión/autenticación OK; `check_email` → correo de prueba enviado a `ctorresj@utem.cl`.
+- `EMAIL_HOST_USER=ctorresj@utem.cl` funciona porque la cuenta es Google Workspace. La contraseña de aplicación debe mantenerse solo en `.env` y en Vercel.
+- Vercel: las variables SMTP ya están cargadas en Production y Preview; no se modificaron desde este entorno.
+- Pendiente: confirmar en Vercel que `EMAIL_BACKEND` sea `django.core.mail.backends.smtp.EmailBackend` y que `DEFAULT_FROM_EMAIL` sea `Volantines Strong <ctorresj@utem.cl>`. Luego redeploy y prueba real de checkout.
+- `.env.example` se eliminó por decisión del usuario; la documentación ahora usa `.env` directamente.

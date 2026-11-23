@@ -2,7 +2,7 @@
 
 Tienda online de volantines + panel de administración, hecha en Django. El frontend es una réplica 1:1 de los archivos de diseño en `refvisual/` (`index.html` para la tienda y `admin.html` para el admin).
 
-Incluye carrito persistido en base de datos, checkout con **comprobante de pago obligatorio**, aviso por correo al dueño vía **Resend** (con el comprobante adjunto), confirmación automática al cliente, notificación cuando el pedido está listo, personalizador de carretes en Canvas, consulta de estado por código, reportes en el admin y login real de Django.
+Incluye carrito persistido en base de datos, checkout con **comprobante de pago obligatorio**, aviso por correo al dueño vía **Gmail SMTP** (con el comprobante adjunto), confirmación automática al cliente, notificación cuando el pedido está listo, personalizador de carretes en Canvas, consulta de estado por código, reportes en el admin y login real de Django.
 
 ---
 
@@ -11,7 +11,7 @@ Incluye carrito persistido en base de datos, checkout con **comprobante de pago 
 - Django 6.1.3 / Python 3.12+ (probado con 3.14)
 - PostgreSQL de Supabase (con fallback a SQLite local)
 - Supabase Storage para imágenes de producto y comprobantes
-- Resend para correo (backend HTTP propio, sin SDK extra)
+- Gmail SMTP para correo (backend estándar de Django, sin SDK extra)
 - Tailwind/CDNs y JS vanilla reconstruidos desde el diseño de referencia
 
 ---
@@ -26,8 +26,7 @@ python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
-cp .env.example .env               # Windows: copy .env.example .env
-# Editá .env a mano con tus valores (NUNCA lo subas al repo)
+# Creá .env a mano con tus valores (NUNCA lo subas al repo)
 
 python manage.py migrate
 python manage.py check
@@ -40,7 +39,7 @@ Si `SECRET_KEY` no está definida, Django falla al arrancar a propósito. No hay
 
 ## Variables de entorno
 
-Copiá `.env.example` como `.env` y completá:
+Creá `.env` y completá:
 
 | Variable | Uso |
 | --- | --- |
@@ -57,10 +56,14 @@ Copiá `.env.example` como `.env` y completá:
 | `BANK_NAME` / `BANK_ACCOUNT_TYPE` / `BANK_RUT` / `BANK_ACCOUNT` | Datos de transferencia mostrados en checkout y correos. |
 | `BUSINESS_ADDRESS` | Dirección de retiro mostrada en tienda, correos y seguimiento. |
 | `ADMIN_EMAIL` | Destinatario del aviso de compra. Por defecto `ctorresj@utem.cl`. |
-| `DEFAULT_FROM_EMAIL` | Remitente verificado en Resend. |
-| `RESEND_API_KEY` | Key de Resend. Sin ella se usa el backend de consola. |
-| `EMAIL_BACKEND` | Opcional. Fuerza un backend manualmente. |
-| `SEND_CUSTOMER_CONFIRMATION` | Envía confirmación al comprador. `True` por defecto; temporalmente `False` en Vercel por la limitación de Resend. |
+| `DEFAULT_FROM_EMAIL` | Remitente. Debe coincidir con `EMAIL_HOST_USER` o un alias verificado en Gmail. |
+| `EMAIL_BACKEND` | Backend de correo. Por defecto SMTP si hay credenciales; consola si no. |
+| `EMAIL_HOST` / `EMAIL_PORT` | Servidor SMTP. Por defecto `smtp.gmail.com:587`. |
+| `EMAIL_USE_TLS` / `EMAIL_USE_SSL` | Seguridad de la conexión. Para Gmail: TLS `True`, SSL `False`. |
+| `EMAIL_HOST_USER` | Cuenta de Google que autentica el envío. |
+| `EMAIL_HOST_PASSWORD` | Contraseña de aplicación de 16 caracteres (sin espacios). |
+| `EMAIL_TIMEOUT` | Timeout de conexión SMTP. Por defecto 15 segundos. |
+| `SEND_CUSTOMER_CONFIRMATION` | Envía confirmación al comprador. `True` por defecto. |
 
 > Si `DATABASE_URL` está vacía se usa `db.sqlite3`. Eso es ideal para probar en un PC sin IPv6 (algunas redes no pueden llegar al host de Supabase, que sólo resolvía AAAA).
 
@@ -94,9 +97,9 @@ Si la subida falla en **local/desarrollo** (`DEBUG=True` o `ALLOW_LOCAL_STORAGE_
 
 ---
 
-## Correo con Resend
+## Correo con Gmail SMTP
 
-Con `RESEND_API_KEY` configurada, el checkout envía **dos correos**: uno a `ADMIN_EMAIL` (por defecto `ctorresj@utem.cl`) y una confirmación al correo del comprador. El aviso al dueño incluye:
+El envío usa la cuenta de Google configurada en `EMAIL_HOST_USER` con una **contraseña de aplicación**. El checkout envía **dos correos**: uno a `ADMIN_EMAIL` (por defecto `ctorresj@utem.cl`) y una confirmación al correo del comprador. El aviso al dueño incluye:
 
 - Datos del cliente, RUT, teléfono y correo.
 - Retiro en taller, fecha y franja horaria (los campos de despacho quedan sólo como datos históricos).
@@ -106,9 +109,19 @@ Con `RESEND_API_KEY` configurada, el checkout envía **dos correos**: uno a `ADM
 
 Además, los cambios de estado a **Pago Confirmado**, **Preparando**, **Listo para Retiro**, **Retirado** y **Cancelado** envían automáticamente un aviso al comprador, una sola vez por estado. El panel permite reenviar el aviso al cliente y también reenviar el aviso de nueva compra al administrador.
 
-Sin la key, los correos se imprimen en la terminal (backend consola), útil para desarrollo.
+`DEFAULT_FROM_EMAIL` debe ser la misma cuenta de `EMAIL_HOST_USER` o un alias verificado en **Gmail → Enviar como**. Si no coincide, Gmail puede reescribir el remitente.
 
-En el plan gratuito de Resend, `onboarding@resend.dev` sólo envía al correo de la cuenta: verificá tu propio remitente en `DEFAULT_FROM_EMAIL`. Mientras eso no ocurra, Vercel tiene `SEND_CUSTOMER_CONFIRMATION=False` para no intentar envíos fallidos a los clientes. El aviso al administrador sigue intentándose, pero con `ADMIN_EMAIL=ctorresj@utem.cl` también será rechazado por Resend. Cuando verifiques el dominio, volvé a poner `SEND_CUSTOMER_CONFIRMATION=True`.
+Para probar la conexión y enviar un correo de diagnóstico:
+
+```bash
+python manage.py check_email --no-send   # solo conexión/autenticación
+python manage.py check_email             # envía a ADMIN_EMAIL
+python manage.py check_email --to otro@correo.cl
+```
+
+La contraseña de aplicación requiere verificación en dos pasos y son 16 caracteres sin espacios. Gmail permite ~500 destinatarios/día en cuentas gratuitas; es suficiente para pedidos, no para envíos masivos.
+
+Si no hay credenciales, se usa el backend de consola y los correos se imprimen en la terminal, útil para desarrollo.
 
 ---
 
@@ -246,16 +259,15 @@ vercel deploy        # O `vercel --prod` para producción
 
 ### Variables a configurar en el proyecto de Vercel
 
-Además del token (que es sólo para la CLI), cargá en **Project Settings → Environment Variables**: `SECRET_KEY`, `DEBUG=False`, `ALLOWED_HOSTS`, `DATABASE_URL` (Supabase), `SUPABASE_URL`, `SUPABASE_KEY` (service_role), buckets, `ADMIN_EMAIL`, `DEFAULT_FROM_EMAIL`, `RESEND_API_KEY` y los datos de negocio (`WHATSAPP_NUMBER`, `BANK_*`, `BUSINESS_ADDRESS`).
+Además del token (que es sólo para la CLI), cargá en **Project Settings → Environment Variables**: `SECRET_KEY`, `DEBUG=False`, `ALLOWED_HOSTS`, `DATABASE_URL` (Supabase), `SUPABASE_URL`, `SUPABASE_KEY` (service_role), buckets, `ADMIN_EMAIL`, `DEFAULT_FROM_EMAIL`, `EMAIL_BACKEND` (`django.core.mail.backends.smtp.EmailBackend`), `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_TIMEOUT` y los datos de negocio (`WHATSAPP_NUMBER`, `BANK_*`, `BUSINESS_ADDRESS`).
 
-No definas `EMAIL_BACKEND`: el código elige Resend cuando hay `RESEND_API_KEY` y consola cuando no la hay. `ALLOW_LOCAL_STORAGE_FALLBACK` debe quedar en `False` (o sin definir, porque `DEBUG=False`). Usá la cadena **Transaction pooler** de Supabase (`puerto 6543`) en `DATABASE_URL`; el pooler es compatible con funciones serverless. Los buckets `product-images`, `payment-receipts` y `custom-designs` deben existir y ser públicos. Las migraciones se aplican automáticamente en cada deploy mediante el `buildCommand`.
+`EMAIL_BACKEND` debe ser `django.core.mail.backends.smtp.EmailBackend`. Si no hay credenciales SMTP, el código cae al backend de consola. `ALLOW_LOCAL_STORAGE_FALLBACK` debe quedar en `False` (o sin definir, porque `DEBUG=False`). Usá la cadena **Transaction pooler** de Supabase (`puerto 6543`) en `DATABASE_URL`; el pooler es compatible con funciones serverless. Los buckets `product-images`, `payment-receipts` y `custom-designs` deben existir y ser públicos. Las migraciones se aplican automáticamente en cada deploy mediante el `buildCommand`.
 
 ### Recargar todas las variables desde `.env`
 
-`.env.example` contiene la estructura completa y comenta dónde obtener cada valor. Para volver a cargar todo en Vercel de una sola vez:
+Completá `.env` con los valores reales (ese archivo no se versiona). Para volver a cargar todo en Vercel de una sola vez:
 
 ```bash
-cp .env.example .env      # completá los valores en .env
 powershell -File scripts/sync_vercel_env.ps1
 vercel deploy --prod --yes
 ```
@@ -270,14 +282,13 @@ El script sube cada variable a **Production y Preview**, omite `VERCEL_*`, elimi
 BASE/
 ├── admin_panel/        # login, dashboard y check_storage
 ├── cart/               # carrito en BD + API JSON + servicios
-├── config/             # settings, urls, backend de Resend, validadores
+├── config/             # settings, urls, configuración de correo, validadores
 ├── orders/             # Order, OrderItem, checkout, correos y seguimiento
 ├── products/           # Category, Product, ProductImage, personalizador
 ├── refvisual/          # fuente visual única (no editar)
 ├── static/             # css y js reconstruidos
 ├── templates/          # base, storefront, products, cart, orders, admin_panel
 ├── tests/              # 33 pruebas smoke/integración
-├── .env.example
 ├── requirements.txt
 └── vercel.json           # configuración de la función Python
 

@@ -53,20 +53,38 @@ BANK_ACCOUNT_TYPE = os.environ.get('BANK_ACCOUNT_TYPE', 'Cuenta Vista')
 BANK_RUT = os.environ.get('BANK_RUT', '')
 BANK_ACCOUNT = os.environ.get('BANK_ACCOUNT', '')
 
-# Correo (Resend) — la key se carga del entorno; sin key se usa la consola en local.
-RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
-ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', '').strip() or 'ctorresj@utem.cl'
-DEFAULT_FROM_EMAIL = os.environ.get(
-    'DEFAULT_FROM_EMAIL',
-    'Volantines Strong <onboarding@resend.dev>',
+# Correo (Gmail SMTP).
+# EMAIL_BACKEND se puede forzar desde el entorno; si no se define, se usa SMTP
+# cuando hay credenciales y consola en local cuando no las hay.
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() in (
+    '1', 'true', 'yes', 'on'
 )
-EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND') or (
-    'config.email_backends.ResendEmailBackend'
-    if RESEND_API_KEY
+EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False').lower() in (
+    '1', 'true', 'yes', 'on'
+)
+if EMAIL_USE_TLS and EMAIL_USE_SSL:
+    raise ImproperlyConfigured(
+        'EMAIL_USE_TLS y EMAIL_USE_SSL no pueden estar activos a la vez'
+    )
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '').strip()
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '').strip()
+EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '15'))
+
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', '').strip() or 'ctorresj@utem.cl'
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', '').strip() or (
+    f'Volantines Strong <{EMAIL_HOST_USER}>'
+    if EMAIL_HOST_USER
+    else 'Volantines Strong <webmaster@localhost>'
+)
+
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', '').strip() or (
+    'django.core.mail.backends.smtp.EmailBackend'
+    if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD
     else 'django.core.mail.backends.console.EmailBackend'
 )
-# Mientras Resend no tenga un dominio verificado, sólo puede enviar al correo
-# de la cuenta. Esta bandera evita intentos fallidos de confirmación al cliente.
+
 SEND_CUSTOMER_CONFIRMATION = os.environ.get(
     'SEND_CUSTOMER_CONFIRMATION', 'True'
 ).lower() in ('1', 'true', 'yes', 'on')
