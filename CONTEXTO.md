@@ -356,8 +356,13 @@ Estado: **línea base completada; pendiente reproducir una subida real para capt
 - Evidencia de producción: `GET /media/products/3/main/IMG_5870.jpg` → **404** repetido. Vercel no sirve `media/`; las imágenes locales no existen en producción.
 - Evidencia de borrado: `POST /admin-panel/productos/3/eliminar-definitivo/` → **400** mientras el producto tenía pedidos; después de borrar los pedidos → **200**. El guard actual funciona.
 - Respaldo: `manage.py dumpdata` guardado en `C:\Users\atun0\AppData\Local\Temp\opencode\volantines_backup_fase0.json` (15,6 KB). No hay `pg_dump` instalado.
+- **Límite de Vercel confirmado con prueba controlada** (`POST https://volantines-strong.vercel.app/health`):
+  - 1,0 MB → `403` (CSRF, la petición llega a Django; el tamaño no es el problema).
+  - 4,6 MB → `413 FUNCTION_PAYLOAD_TOO_LARGE` (Vercel corta antes de Django).
+  - 5,5 MB → `413 FUNCTION_PAYLOAD_TOO_LARGE`.
+  - Conclusión: el límite real está entre 1 MB y 4,6 MB, coherente con el tope de ~4,5 MB de Vercel Functions. Cualquier formulario que supere ese peso falla con 413 antes de ejecutar código.
 - Pendiente:
-  1. Reproducir una subida en producción con una imagen pequeña (~500 KB) y otra grande (~3 MB), y capturar el código HTTP exacto (`413`, `403`, `404` o `400`).
-  2. Confirmar en Vercel el valor real de `SUPABASE_STORAGE_BUCKET` (debe ser `product-images`, no `products-images`).
-  3. Confirmar el estado del dominio en Resend (sandbox vs dominio verificado).
+  1. Confirmar en Vercel el valor real de `SUPABASE_STORAGE_BUCKET` (debe ser `product-images`, no `products-images`). Solo se puede ver en el dashboard o con una prueba de subida real.
+  2. Confirmar el estado del dominio en Resend (sandbox vs dominio verificado).
+  3. Confirmar si `SUPABASE_KEY` de producción es `service_role`/secret (no se puede leer por CLI porque está marcada como `Secret`).
 - Siguiente fase: **Fase 1 — Entorno y diagnóstico**.
