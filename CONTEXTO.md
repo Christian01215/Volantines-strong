@@ -254,7 +254,7 @@ El checkout creates session dentro de `transaction.atomic`; al fallar, el rollba
 - `manage.py check` → OK.
 - `manage.py makemigrations --check --dry-run` → "No changes detected".
 - `manage.py migrate` → todas aplicadas en Supabase Postgres.
-- `manage.py test tests` → **20 pruebas OK** (3.9 s); tras los fixes finales, **31 pruebas OK**.
+- `manage.py test tests` → **20 pruebas OK** (3.9 s); tras los fixes finales, **33 pruebas OK**.
 - `loaddata categories` → 5 categorías oficiales en BD.
 - Smoke HTTP con `runserver`: `/`, `/cart/api/`, `/admin-panel/login/`, `/producto/<slug>/`, `/cart/carrito/` → 200.
 - BD real: `DB_ENGINE=postgresql`, `DATABASE_URL_SET=True`; `ADMIN_EMAIL=ctorresj@utem.cl`, `RESEND_CONFIGURED=False` (backend consola local).
@@ -311,7 +311,25 @@ El checkout creates session dentro de `transaction.atomic`; al fallar, el rollba
 - Diagnóstico: `SUPABASE_KEY` en Vercel era muy probablemente `anon`/`publishable`; esas keys no pueden insertar en `storage.objects` aunque el bucket sea público. La key `service_role`/`secret` sí bypasea RLS.
 - Decisión: el usuario reemplaza `SUPABASE_KEY` por la `service_role` directamente en el dashboard de Vercel (sin exponer el valor en el chat).
 - Endurecimiento aplicado en `config/storage.py`: `x-upsert: "false"` explícito y traducción del error RLS a un mensaje que indica revisar `service_role` y permisos `INSERT`.
-- Nueva prueba `tests/test_storage.py`: 2 pruebas (upload sin upsert y mensaje RLS). Total: **31 pruebas OK**.
+- Nueva prueba `tests/test_storage.py`: 2 pruebas (upload sin upsert y mensaje RLS). Total: **33 pruebas OK** tras agregar 2 pruebas de eliminación definitiva.
 - Commit `5b77db1` pusheado y desplegado en `dpl_FR8uNKrZhsB245Ym6Vdewfvo6Jyz`.
-- Verificación: 31 pruebas OK; smoke en producción `/health`, `/`, `/cart/api/` y `/admin-panel/login/` → 200; logs sin errores en los últimos 30 minutos.
+- Verificación: 33 pruebas OK; smoke en producción `/health`, `/`, `/cart/api/` y `/admin-panel/login/` → 200; logs sin errores en los últimos 30 minutos.
 - No se pudo confirmar el cambio de `SUPABASE_KEY`: `vercel env ls` sigue mostrando la variable con fecha de 21h atrás. Si reaparece el 403 de RLS, el usuario debe revisar en Supabase → Settings → API que el valor en Vercel sea la `service_role`/`secret key` y no la `anon`/`publishable`.
+
+## 15. Diagnóstico completo de Supabase y recarga de entorno — 23/11/2026
+
+- El usuario reportó `404 Bucket not found` al subir imágenes: el código intentaba `products-images` (plural).
+- Diagnóstico con SQL en Supabase:
+  - Buckets: `custom-designs`, `payment-receipts`, `product-images`, todos `public = true`.
+  - Políticas: `INSERT`/`SELECT` para `anon` en los tres buckets.
+  - `service_role` tiene `rolbypassrls = true`.
+  - Migraciones: todas aplicadas, incluidas `products/0005` y `orders/0004`.
+  - Objetos: `payment-receipts` tiene 3 archivos; `product-images` y `custom-designs`, 0.
+  - Productos sin imagen: 7 (`volantin`, `volantin123` x2, `volantinprueba`, `maleta prueba`, `cahilos pruebas` x2). No se perdieron; hay que re-subir fotos.
+- Causa raíz: `SUPABASE_STORAGE_BUCKET` en Vercel valía `products-images`. Se corrigió a `product-images` con `vercel env update ... --environment production`.
+- Limpieza de Vercel: eliminada `ALLOWED_HOST` (inválida) y la copia duplicada de `SUPABASE_KEY` en Development. Queda una sola `SUPABASE_KEY` en Production/Preview.
+- `.env.example` reescrito con la estructura completa, `ALLOW_LOCAL_STORAGE_FALLBACK=False`, `SEND_CUSTOMER_CONFIRMATION=False` y comentarios sobre dónde obtener cada valor.
+- Nuevo `scripts/sync_vercel_env.ps1`: lee `.env`, omite `VERCEL_*`, elimina variables obsoletas y sube el resto a Production y Preview con `vercel env add --sensitive --force --yes` sin imprimir secretos.
+- Bug del código de seguimiento corregido: `cart.js` ya no llama a `StrongCart.clear()` después de pintar el código; usa `apply({items:[],count:0,total:0})` antes, porque el backend ya vacía el carrito.
+- Eliminación definitiva de productos agregada: `admin_panel:product_purge` borra el producto sólo si no tiene `OrderItem`s; si aparece en pedidos devuelve 400 y sugiere usar "Desactivar". Botón visible sólo para productos inactivos.
+- 2 pruebas nuevas en `tests/test_admin.py`. Total: **33 pruebas OK**.

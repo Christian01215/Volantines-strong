@@ -201,7 +201,7 @@ python manage.py loaddata categories
 5. Registrá el pedido: debe aparecer un código `VC########` y dos correos (dueño y comprador).
 6. Consultá el estado en `/orders/pedido/` con el código recibido.
 7. Entrá a `/admin-panel/dashboard/` → sección `03 / VENTAS`: el pedido debe estar con link al comprobante; en `04 / REPORTES` revisá los indicadores.
-8. Probá cambio de estado a *Listo para Retiro* (dispara correo automático), notificación manual, exportar Excel, editar/desactivar/reactivar producto y logout.
+8. Probá cambio de estado a *Listo para Retiro* (dispara correo automático), notificación manual, exportar Excel, editar/desactivar/reactivar producto, eliminación definitiva de productos sin pedidos y logout.
 
 ---
 
@@ -250,6 +250,18 @@ Además del token (que es sólo para la CLI), cargá en **Project Settings → E
 
 No definas `EMAIL_BACKEND`: el código elige Resend cuando hay `RESEND_API_KEY` y consola cuando no la hay. `ALLOW_LOCAL_STORAGE_FALLBACK` debe quedar en `False` (o sin definir, porque `DEBUG=False`). Usá la cadena **Transaction pooler** de Supabase (`puerto 6543`) en `DATABASE_URL`; el pooler es compatible con funciones serverless. Los buckets `product-images`, `payment-receipts` y `custom-designs` deben existir y ser públicos. Las migraciones se aplican automáticamente en cada deploy mediante el `buildCommand`.
 
+### Recargar todas las variables desde `.env`
+
+`.env.example` contiene la estructura completa y comenta dónde obtener cada valor. Para volver a cargar todo en Vercel de una sola vez:
+
+```bash
+cp .env.example .env      # completá los valores en .env
+powershell -File scripts/sync_vercel_env.ps1
+vercel deploy --prod --yes
+```
+
+El script sube cada variable a **Production y Preview**, omite `VERCEL_*`, elimina la variable inválida `ALLOWED_HOST` y el duplicado de `SUPABASE_KEY` en Development. No imprime los secretos.
+
 ---
 
 ## Estructura
@@ -264,7 +276,7 @@ BASE/
 ├── refvisual/          # fuente visual única (no editar)
 ├── static/             # css y js reconstruidos
 ├── templates/          # base, storefront, products, cart, orders, admin_panel
-├── tests/              # 31 pruebas smoke/integración
+├── tests/              # 33 pruebas smoke/integración
 ├── .env.example
 ├── requirements.txt
 └── vercel.json           # configuración de la función Python

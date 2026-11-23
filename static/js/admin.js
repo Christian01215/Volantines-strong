@@ -119,6 +119,7 @@
     if (!url && row) {
       if (action === 'delete-product') url = row.dataset.deleteUrl;
       if (action === 'restore-product') url = row.dataset.restoreUrl;
+      if (action === 'purge-product') url = row.dataset.purgeUrl;
     }
     if (!url) return;
 
@@ -127,6 +128,9 @@
     }
     if (action === 'restore-product') {
       if (!window.confirm('¿Reactivar este producto?')) return;
+    }
+    if (action === 'purge-product') {
+      if (!window.confirm('¿Eliminar definitivamente este producto? Esta acción no se puede deshacer. Sólo se permite si no aparece en pedidos.')) return;
     }
     if (action === 'delete-order') {
       if (!window.confirm('¿Eliminar este pedido?')) return;

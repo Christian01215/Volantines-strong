@@ -161,6 +161,46 @@ class AdminPanelTests(TestCase):
         product.refresh_from_db()
         self.assertTrue(product.is_active)
 
+    def test_product_purge_removes_unused_product(self):
+        product = Product.objects.create(
+            name="Producto a purgar",
+            slug="producto-a-purgar",
+            category=self.category,
+            price=2000,
+            stock=1,
+        )
+        url = reverse("admin_panel:product_purge", args=[product.pk])
+
+        response = self.client.post(url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ok"])
+        self.assertFalse(Product.objects.filter(pk=product.pk).exists())
+
+    def test_product_purge_blocked_when_product_is_in_order_history(self):
+        product = Product.objects.create(
+            name="Producto con historial",
+            slug="producto-con-historial",
+            category=self.category,
+            price=3000,
+            stock=1,
+        )
+        order = Order.objects.create(
+            code="VC88888888", customer_name="Cliente Historial", total=3000
+        )
+        OrderItem.objects.create(
+            order=order, product=product, quantity=1, price=3000, cost=1200
+        )
+        url = reverse("admin_panel:product_purge", args=[product.pk])
+
+        response = self.client.post(url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()["ok"])
+        self.assertIn("pedido", response.json()["message"])
+        self.assertTrue(Product.objects.filter(pk=product.pk).exists())
+        self.assertEqual(OrderItem.objects.filter(product=product).count(), 1)
+
     def test_owner_notification_retry_sets_timestamp(self):
         order = Order.objects.create(
             code="VC77777777",

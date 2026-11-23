@@ -245,6 +245,11 @@
           throw new Error(data.message || 'No se pudo registrar el pedido.');
         }
 
+        // El backend ya vació el carrito al crear la orden. Actualizamos el
+        // estado local antes de pintar el mensaje para no sobreescribir el
+        // código de seguimiento con el render "carrito vacío".
+        apply({ items: [], count: 0, total: 0 });
+
         if (container) {
           container.innerHTML = '' +
             '<div class="text-center py-8">' +
@@ -259,7 +264,6 @@
         if (itemsStep) itemsStep.classList.remove('hidden');
         if (footer) footer.classList.add('hidden');
         if (form) form.classList.add('hidden');
-        window.StrongCart.clear();
       } catch (error) {
         if (errorLabel) {
           errorLabel.textContent = error.message;

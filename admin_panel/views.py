@@ -293,6 +293,30 @@ def product_restore(request, product_id):
 
 
 @staff_member_required(login_url="admin_panel:login")
+@require_POST
+def product_purge(request, product_id):
+    """Elimina definitivamente un producto sólo si no está en el historial."""
+    product = get_object_or_404(Product, pk=product_id)
+    usages = OrderItem.objects.filter(product=product).count()
+    if usages:
+        return JsonResponse({
+            "ok": False,
+            "message": (
+                f"No se puede eliminar: este producto aparece en {usages} pedido(s). "
+                "Usá 'Desactivar' para ocultarlo sin borrar el historial."
+            ),
+        }, status=400)
+
+    name = product.name
+    product.delete()
+    messages.success(request, f"Producto '{name}' eliminado definitivamente.")
+    return JsonResponse({
+        "ok": True,
+        "message": f"Producto '{name}' eliminado definitivamente.",
+    })
+
+
+@staff_member_required(login_url="admin_panel:login")
 def order_status_update(request, order_code):
     order = get_object_or_404(Order, code=order_code)
     new_status = request.POST.get("status")

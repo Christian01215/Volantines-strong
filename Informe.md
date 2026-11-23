@@ -949,7 +949,7 @@ El proyecto se encuentra desplegado en Vercel
 (https://volantines-strong.vercel.app) y utiliza Supabase como base de datos y
 almacenamiento de archivos. El catálogo, el carrito, el checkout con comprobante
 de transferencia, el panel administrativo, el personalizador de carretes y los
-reportes avanzados están implementados, validados con 31 pruebas automáticas y
+reportes avanzados están implementados, validados con 33 pruebas automáticas y
 publicados. El build de Vercel aplica las migraciones y recolector de archivos
 estáticos; las variables de Storage y correo quedaron configuradas en el
 proyecto. La integración de una pasarela de pago automática permanece fuera del
@@ -960,7 +960,9 @@ tanto, las confirmaciones automáticas al comprador están desactivadas
 temporalmente mediante `SEND_CUSTOMER_CONFIRMATION=False`. La subida de
 archivos requiere la key `service_role` de Supabase; los errores de RLS se
 traducen a un mensaje que indica revisar esa key y los permisos `INSERT` de los
-buckets.
+buckets. La recarga de variables se automatiza con `scripts/sync_vercel_env.ps1`
+desde un `.env` completo, y el panel permite eliminar definitivamente sólo los
+productos que no aparecen en el historial de pedidos.
 Taller de Sistemas de Información • UTEM | Página
 35
 
