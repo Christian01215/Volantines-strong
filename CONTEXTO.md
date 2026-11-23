@@ -254,7 +254,7 @@ El checkout creates session dentro de `transaction.atomic`; al fallar, el rollba
 - `manage.py check` → OK.
 - `manage.py makemigrations --check --dry-run` → "No changes detected".
 - `manage.py migrate` → todas aplicadas en Supabase Postgres.
-- `manage.py test tests` → **20 pruebas OK** (3.9 s); tras los fixes finales, **29 pruebas OK**.
+- `manage.py test tests` → **20 pruebas OK** (3.9 s); tras los fixes finales, **31 pruebas OK**.
 - `loaddata categories` → 5 categorías oficiales en BD.
 - Smoke HTTP con `runserver`: `/`, `/cart/api/`, `/admin-panel/login/`, `/producto/<slug>/`, `/cart/carrito/` → 200.
 - BD real: `DB_ENGINE=postgresql`, `DATABASE_URL_SET=True`; `ADMIN_EMAIL=ctorresj@utem.cl`, `RESEND_CONFIGURED=False` (backend consola local).
@@ -303,3 +303,13 @@ El checkout creates session dentro de `transaction.atomic`; al fallar, el rollba
 - Para restaurar el flujo completo: verificar dominio propio, actualizar `DEFAULT_FROM_EMAIL` a `Volantines Strong <pedidos@dominio.cl>` y poner `SEND_CUSTOMER_CONFIRMATION=True`.
 - Implementado en el commit `d6ad8c4` y desplegado en `dpl_Rr11Y1P16ye9AwnRdDA8bNvLTDkP`.
 - Verificación: 29 pruebas OK, smoke en producción `/health`, `/`, `/cart/api/` y `/admin-panel/login/` → 200.
+
+## 14. Error RLS al subir comprobantes — 23/11/2026
+
+- El usuario reportó `403 Unauthorized: new row violates row-level security policy` al subir el comprobante del pedido `VC82900490` al bucket `payment-receipts`.
+- Se confirmó en `storage3` que `upload()` usa `POST` con `x-upsert=false`, así que no era el caso de `upsert:true` de la documentación de Supabase.
+- Diagnóstico: `SUPABASE_KEY` en Vercel era muy probablemente `anon`/`publishable`; esas keys no pueden insertar en `storage.objects` aunque el bucket sea público. La key `service_role`/`secret` sí bypasea RLS.
+- Decisión: el usuario reemplaza `SUPABASE_KEY` por la `service_role` directamente en el dashboard de Vercel (sin exponer el valor en el chat).
+- Endurecimiento aplicado en `config/storage.py`: `x-upsert: "false"` explícito y traducción del error RLS a un mensaje que indica revisar `service_role` y permisos `INSERT`.
+- Nueva prueba `tests/test_storage.py`: 2 pruebas (upload sin upsert y mensaje RLS). Total: **31 pruebas OK**.
+- Pendiente: redeploy y verificación con comprobante real.

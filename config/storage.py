@@ -48,6 +48,17 @@ def _fallback_allowed():
     return bool(getattr(settings, "ALLOW_LOCAL_STORAGE_FALLBACK", False))
 
 
+def _friendly_error(error):
+    """Traduce el error de RLS de Supabase a una acción concreta."""
+    lowered = error.lower()
+    if "row-level security" in lowered or "rls" in lowered:
+        return (
+            "Supabase rechazó la subida por RLS. Verifica que SUPABASE_KEY sea la "
+            "service_role/secret key (no anon/publishable) y que el bucket permita INSERT"
+        )
+    return error
+
+
 def save_upload(content, path, mimetype, bucket, label):
     """Guarda ``content`` en ``bucket`` y devuelve :class:`UploadResult`.
 
@@ -62,14 +73,16 @@ def save_upload(content, path, mimetype, bucket, label):
         try:
             client = supabase.create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
             storage_bucket = client.storage.from_(bucket)
-            storage_bucket.upload(path, content, {"content-type": mimetype})
+            upload_options = {"content-type": mimetype, "x-upsert": "false"}
+            storage_bucket.upload(path, content, upload_options)
             return UploadResult(url=storage_bucket.get_public_url(path))
         except Exception as exc:
             error = str(exc)
             logger.exception("No se pudo subir %s al bucket '%s': %s", label, bucket, exc)
             if not _fallback_allowed():
                 raise StorageUploadError(
-                    f"No se pudo subir {label} a Supabase Storage ({bucket}): {error}"
+                    f"No se pudo subir {label} a Supabase Storage ({bucket}): "
+                    f"{_friendly_error(error)}"
                 ) from exc
     else:
         error = f"Supabase Storage no está configurado para {label}."

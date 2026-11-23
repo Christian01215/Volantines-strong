@@ -88,6 +88,8 @@ python manage.py check_storage --create
 
 > `products_product` y `products_productimage` son **tablas de base de datos**, no buckets. Los buckets se crean en el dashboard de Supabase.
 
+`SUPABASE_KEY` debe ser la **service_role/secret key**. Si aparece `new row violates row-level security policy`, la key configurada es `anon`/`publishable`: reemplazala por la `service_role` en Vercel y redeployá. Un bucket público autoriza lectura, pero no escritura sin esa key o sin una política `INSERT`.
+
 Si la subida falla en **local/desarrollo** (`DEBUG=True` o `ALLOW_LOCAL_STORAGE_FALLBACK=True`), el código guarda el archivo en `media/` y muestra un `messages.warning` con el error real. En **producción/Vercel** no existe ese fallback: la vista devuelve un mensaje claro en lugar de un 500, porque el disco efímero no conservaría el archivo. Las imágenes se guardan como ruta en `ImageField` **o** como URL en `image_url` (nunca una URL dentro del `ImageField`, para evitar `/media/media/...`).
 
 ---
@@ -262,7 +264,7 @@ BASE/
 ├── refvisual/          # fuente visual única (no editar)
 ├── static/             # css y js reconstruidos
 ├── templates/          # base, storefront, products, cart, orders, admin_panel
-├── tests/              # 29 pruebas smoke/integración
+├── tests/              # 31 pruebas smoke/integración
 ├── .env.example
 ├── requirements.txt
 └── vercel.json           # configuración de la función Python
