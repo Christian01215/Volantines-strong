@@ -312,4 +312,6 @@ El checkout creates session dentro de `transaction.atomic`; al fallar, el rollba
 - Decisión: el usuario reemplaza `SUPABASE_KEY` por la `service_role` directamente en el dashboard de Vercel (sin exponer el valor en el chat).
 - Endurecimiento aplicado en `config/storage.py`: `x-upsert: "false"` explícito y traducción del error RLS a un mensaje que indica revisar `service_role` y permisos `INSERT`.
 - Nueva prueba `tests/test_storage.py`: 2 pruebas (upload sin upsert y mensaje RLS). Total: **31 pruebas OK**.
-- Pendiente: redeploy y verificación con comprobante real.
+- Commit `5b77db1` pusheado y desplegado en `dpl_FR8uNKrZhsB245Ym6Vdewfvo6Jyz`.
+- Verificación: 31 pruebas OK; smoke en producción `/health`, `/`, `/cart/api/` y `/admin-panel/login/` → 200; logs sin errores en los últimos 30 minutos.
+- No se pudo confirmar el cambio de `SUPABASE_KEY`: `vercel env ls` sigue mostrando la variable con fecha de 21h atrás. Si reaparece el 403 de RLS, el usuario debe revisar en Supabase → Settings → API que el valor en Vercel sea la `service_role`/`secret key` y no la `anon`/`publishable`.
