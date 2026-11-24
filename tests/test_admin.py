@@ -1,5 +1,5 @@
 """Panel de administración: permisos, slug único y rutas de pedidos."""
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from io import BytesIO
 import tempfile
 
@@ -8,6 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from openpyxl import load_workbook
 
 from orders.models import Order, OrderItem
@@ -25,6 +26,31 @@ class AdminPanelTests(TestCase):
     def setUp(self):
         mail.outbox = []
         self.client.force_login(self.staff)
+
+    @staticmethod
+    def _set_created_at(order, months_ago):
+        """Coloca el pedido en un mes concreto sin depender de la fecha actual."""
+        today = timezone.localdate()
+        index = today.month - 1 - months_ago
+        year = today.year + index // 12
+        month = index % 12 + 1
+        day = today.day if months_ago == 0 else 15
+        created_at = timezone.make_aware(datetime(year, month, day, 12, 0))
+        Order.objects.filter(pk=order.pk).update(created_at=created_at)
+        order.created_at = created_at
+
+    def _create_sale(self, code, months_ago, product):
+        order = Order.objects.create(
+            code=code,
+            customer_name=f"Cliente {code}",
+            customer_email=f"{code.lower()}@example.cl",
+            total=20000,
+        )
+        self._set_created_at(order, months_ago)
+        OrderItem.objects.create(
+            order=order, product=product, quantity=2, price=10000, cost=6000
+        )
+        return order
 
     def test_dashboard_renders(self):
         response = self.client.get(reverse("admin_panel:dashboard"))
@@ -215,7 +241,7 @@ class AdminPanelTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ["ctorresj@utem.cl"])
 
-    def test_export_orders_xlsx_includes_profit_summary(self):
+    def test_export_orders_xlsx_includes_full_report(self):
         product = Product.objects.create(
             name="Producto Excel",
             slug="producto-excel",
@@ -224,14 +250,7 @@ class AdminPanelTests(TestCase):
             cost=6000,
             stock=3,
         )
-        order = Order.objects.create(
-            code="VC88888888",
-            customer_name="Cliente Excel",
-            total=20000,
-        )
-        OrderItem.objects.create(
-            order=order, product=product, quantity=2, price=10000, cost=6000
-        )
+        self._create_sale("VC88888888", 0, product)
 
         response = self.client.get(reverse("admin_panel:export_orders"))
 
@@ -240,12 +259,127 @@ class AdminPanelTests(TestCase):
         workbook = load_workbook(BytesIO(response.content))
         self.assertEqual(
             workbook.sheetnames,
-            ["Resumen mensual", "Pedidos", "Detalle por producto", "Categorías"],
+            [
+                "Resumen ejecutivo",
+                "Compras y ventas 2 meses",
+                "Resumen mensual",
+                "Pedidos",
+                "Detalle por producto",
+                "Categorías",
+                "Clientes",
+                "Retiros",
+            ],
         )
         detail = workbook["Detalle por producto"]
         self.assertEqual(detail["I2"].value, 8000)
         categories = workbook["Categorías"]
         self.assertEqual(categories["D2"].value, 8000)
+        self.assertEqual(categories["E2"].value, 1)
+        self.assertEqual(
+            workbook["Resumen ejecutivo"]["B4"].value, "Historial completo"
+        )
+
+    def test_export_hides_profit_until_third_month(self):
+        product = Product.objects.create(
+            name="Producto sin ganancia",
+            slug="producto-sin-ganancia",
+            category=self.category,
+            price=10000,
+            cost=6000,
+            stock=10,
+        )
+        for months_ago, code in ((0, "VC80000001"), (1, "VC80000002")):
+            self._create_sale(code, months_ago, product)
+
+        workbook = load_workbook(BytesIO(
+            self.client.get(reverse("admin_panel:export_orders")).content
+        ))
+        executive_values = [
+            cell.value
+            for row in workbook["Resumen ejecutivo"].iter_rows()
+            for cell in row
+        ]
+        recent_header = [
+            cell.value for cell in workbook["Compras y ventas 2 meses"][1]
+        ]
+        self.assertNotIn("Ganancia (CLP)", executive_values)
+        self.assertNotIn("Ganancia CLP", recent_header)
+
+    def test_export_shows_profit_from_third_month(self):
+        product = Product.objects.create(
+            name="Producto con ganancia",
+            slug="producto-con-ganancia",
+            category=self.category,
+            price=10000,
+            cost=6000,
+            stock=10,
+        )
+        for months_ago, code in (
+            (0, "VC81000001"), (1, "VC81000002"), (2, "VC81000003")
+        ):
+            self._create_sale(code, months_ago, product)
+
+        workbook = load_workbook(BytesIO(
+            self.client.get(reverse("admin_panel:export_orders")).content
+        ))
+        executive_values = [
+            cell.value
+            for row in workbook["Resumen ejecutivo"].iter_rows()
+            for cell in row
+        ]
+        recent_header = [
+            cell.value for cell in workbook["Compras y ventas 2 meses"][1]
+        ]
+        self.assertIn("Ganancia (CLP)", executive_values)
+        self.assertIn("Ganancia CLP", recent_header)
+
+    def test_export_recent_sheet_ignores_dashboard_date_filters(self):
+        product = Product.objects.create(
+            name="Producto filtros",
+            slug="producto-filtros",
+            category=self.category,
+            price=10000,
+            cost=6000,
+            stock=10,
+        )
+        self._create_sale("VC82000001", 1, product)
+        self._create_sale("VC82000002", 0, product)
+
+        response = self.client.get(
+            reverse("admin_panel:export_orders"),
+            {"date_from": timezone.localdate().isoformat()},
+        )
+        workbook = load_workbook(BytesIO(response.content))
+
+        orders_sheet = workbook["Pedidos"]
+        codes = [
+            orders_sheet.cell(row=row, column=1).value
+            for row in range(2, orders_sheet.max_row)
+        ]
+        self.assertEqual(codes, ["VC82000002"])
+        recent = workbook["Compras y ventas 2 meses"]
+        self.assertEqual(recent.cell(row=2, column=2).value, 1)
+
+    def test_dashboard_does_not_duplicate_currency_symbol(self):
+        Product.objects.create(
+            name="Producto precio",
+            slug="producto-precio",
+            category=self.category,
+            price=25000,
+            stock=5,
+        )
+        Order.objects.create(
+            code="VC99999999",
+            customer_name="Cliente moneda",
+            total=31000,
+        )
+
+        response = self.client.get(reverse("admin_panel:dashboard"))
+
+        self.assertContains(response, "$25.000")
+        self.assertContains(response, "$31.000")
+        self.assertNotContains(response, "$$25.000")
+        self.assertNotContains(response, "$$31.000")
 
     def test_reports_in_dashboard(self):
         product = Product.objects.create(

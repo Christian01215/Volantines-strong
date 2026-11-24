@@ -382,7 +382,8 @@ def order_delete(request, order_code):
 @staff_member_required(login_url="admin_panel:login")
 def export_orders_xlsx(request):
     """Exporta TODOS los pedidos (no sólo los visibles) con ganancias mensuales."""
-    orders = Order.objects.all().order_by("created_at")
+    all_orders = Order.objects.all().order_by("created_at")
+    orders = all_orders
     date_from = (request.GET.get("date_from") or "").strip()
     date_to = (request.GET.get("date_to") or "").strip()
     if date_from:
@@ -390,7 +391,18 @@ def export_orders_xlsx(request):
     if date_to:
         orders = orders.filter(created_at__date__lte=date_to)
 
-    workbook = build_orders_workbook(orders)
+    if date_from and date_to:
+        period_label = f"Desde {date_from} hasta {date_to}"
+    elif date_from:
+        period_label = f"Desde {date_from}"
+    elif date_to:
+        period_label = f"Hasta {date_to}"
+    else:
+        period_label = "Historial completo"
+
+    workbook = build_orders_workbook(
+        orders, all_orders=all_orders, period_label=period_label
+    )
     response = HttpResponse(
         workbook.getvalue(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
