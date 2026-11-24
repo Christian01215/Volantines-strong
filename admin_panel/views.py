@@ -222,7 +222,7 @@ def product_save(request):
             if error:
                 messages.warning(
                     request,
-                    f"No se pudo subir la imagen al bucket '{settings.SUPABASE_STORAGE_BUCKET}': {error}. "
+                    f"No se pudo subir la imagen a Cloudinary: {error}. "
                     "Se guardó en almacenamiento local.",
                 )
 
@@ -249,7 +249,7 @@ def product_save(request):
                 if error:
                     messages.warning(
                         request,
-                        f"Una imagen de galería no se subió a Supabase: {error}. Se guardó localmente.",
+                        f"Una imagen de galería no se subió a Cloudinary: {error}. Se guardó localmente.",
                     )
     except Exception as exc:
         logger.exception("No se pudieron guardar las imágenes del producto %s: %s", product.pk, exc)

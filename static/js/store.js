@@ -23,6 +23,7 @@
       price: Number(data.price) || 0,
       priceLabel: data.priceLabel || NS.formatCLP(data.price),
       image: data.image || '',
+      gallery: (data.gallery || '').split('|').filter(Boolean),
       specs: data.specs || '',
       description: data.description || '',
       stock: Number(data.stock) || 0,
@@ -61,12 +62,86 @@
   });
 
   var modal = NS.byId('product-modal');
+  var modalTrack = NS.byId('modal-gallery-track');
+  var modalGalleryIndex = 0;
+
+  function updateModalGallery() {
+    if (!modalTrack) return;
+    var total = modalTrack.querySelectorAll('.modal-slide').length || 1;
+    var counter = NS.byId('modal-gallery-counter');
+    if (counter) counter.textContent = (modalGalleryIndex + 1) + ' / ' + total;
+    var prev = NS.byId('modal-gallery-prev');
+    var next = NS.byId('modal-gallery-next');
+    if (prev) prev.style.display = total > 1 ? '' : 'none';
+    if (next) next.style.display = total > 1 ? '' : 'none';
+  }
+
+  function goToModalSlide(index) {
+    if (!modalTrack) return;
+    var slides = Array.prototype.slice.call(modalTrack.querySelectorAll('.modal-slide'));
+    if (!slides.length) return;
+    modalGalleryIndex = Math.max(0, Math.min(slides.length - 1, index));
+    var slide = slides[modalGalleryIndex];
+    modalTrack.scrollTo({
+      left: slide.offsetLeft - modalTrack.offsetLeft,
+      behavior: 'smooth'
+    });
+    updateModalGallery();
+  }
+
+  function renderModalGallery(product) {
+    if (!modalTrack) return;
+    var urls = product.gallery && product.gallery.length
+      ? product.gallery
+      : (product.image ? [product.image] : []);
+    modalGalleryIndex = 0;
+    modalTrack.innerHTML = '';
+    urls.forEach(function (url, index) {
+      var slide = document.createElement('div');
+      slide.className = 'modal-slide w-full shrink-0 snap-center grid place-items-center h-full';
+      var image = document.createElement('img');
+      image.src = url;
+      image.alt = product.name + (index ? ' ' + (index + 1) : '');
+      image.className = 'w-full h-full object-contain';
+      slide.appendChild(image);
+      modalTrack.appendChild(slide);
+    });
+    modalTrack.scrollLeft = 0;
+    updateModalGallery();
+  }
+
+  var modalPrevBtn = NS.byId('modal-gallery-prev');
+  if (modalPrevBtn) {
+    modalPrevBtn.addEventListener('click', function () { goToModalSlide(modalGalleryIndex - 1); });
+  }
+  var modalNextBtn = NS.byId('modal-gallery-next');
+  if (modalNextBtn) {
+    modalNextBtn.addEventListener('click', function () { goToModalSlide(modalGalleryIndex + 1); });
+  }
+  if (modalTrack) {
+    modalTrack.addEventListener('scroll', function () {
+      var slides = Array.prototype.slice.call(modalTrack.querySelectorAll('.modal-slide'));
+      if (!slides.length) return;
+      var closest = 0;
+      var minDistance = Infinity;
+      slides.forEach(function (slide, index) {
+        var distance = Math.abs((slide.offsetLeft - modalTrack.offsetLeft) - modalTrack.scrollLeft);
+        if (distance < minDistance) {
+          minDistance = distance;
+          closest = index;
+        }
+      });
+      if (closest !== modalGalleryIndex) {
+        modalGalleryIndex = closest;
+        updateModalGallery();
+      }
+    });
+  }
 
   function openModal(product) {
     if (!modal) return;
     currentProduct = product;
 
-    var img = NS.byId('modal-img');
     var cat = NS.byId('modal-cat');
     var title = NS.byId('modal-title');
     var price = NS.byId('modal-price');
@@ -76,8 +151,7 @@
     var wa = NS.byId('modal-wa-btn');
     var customize = NS.byId('modal-customize-btn');
 
-    if (img) img.src = product.image || '';
-    if (img) img.alt = product.name;
+    renderModalGallery(product);
     if (cat) cat.textContent = product.category;
     if (title) title.textContent = product.name;
     if (price) price.textContent = product.priceLabel;

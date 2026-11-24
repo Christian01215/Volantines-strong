@@ -144,6 +144,7 @@
             data-price="{{ product.price }}"
             data-price-label="{{ product.price_display }}"
             data-image="{% if product.image_url %}{{ product.image_url }}{% elif product.image %}{{ product.image.url }}{% endif %}"
+            data-gallery="{% if product.image_url %}{{ product.image_url }}{% elif product.image %}{{ product.image.url }}{% endif %}{% for image in product.gallery.all %}|{% if image.image_url %}{{ image.image_url }}{% elif image.image %}{{ image.image.url }}{% endif %}{% endfor %}"
             data-specs="{{ product.specs }}"
             data-description="{{ product.description }}"
             data-stock="{{ product.stock }}"

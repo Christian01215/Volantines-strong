@@ -206,12 +206,14 @@ class CheckoutFlowTests(TestCase):
         self.assertEqual(success.status_code, 200)
         self.assertContains(success, "Carrete prueba")
         self.assertContains(success, "Ver comprobante de pago")
+        self.assertContains(success, '<tbody class="text-slate-900">')
 
         track = self.client.get(reverse("orders:track_detail", args=[code]))
         self.assertEqual(track.status_code, 200)
         self.assertContains(track, "Carrete prueba")
         self.assertContains(track, "Productos comprados")
         self.assertContains(track, "Ver comprobante de pago")
+        self.assertContains(track, '<tbody class="text-slate-900">')
         self.assertTrue(payload["receipt_url"])
 
     def test_success_page(self):

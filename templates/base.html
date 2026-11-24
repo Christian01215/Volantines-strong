@@ -168,12 +168,29 @@
         id="close-product-modal"
       >✕</button>
 
-      <img
-        alt=""
-        class="w-full h-64 md:h-full object-cover bg-slate-100"
-        id="modal-img"
-        src=""
-      >
+      <div class="relative w-full h-64 md:h-full bg-slate-100 overflow-hidden">
+        <div
+          id="modal-gallery-track"
+          class="flex h-full overflow-x-auto snap-x scroll-smooth"
+          style="scrollbar-width:none;"
+        ></div>
+        <button
+          type="button"
+          id="modal-gallery-prev"
+          class="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-slate-800 font-bold shadow"
+          aria-label="Imagen anterior"
+        >←</button>
+        <button
+          type="button"
+          id="modal-gallery-next"
+          class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-slate-800 font-bold shadow"
+          aria-label="Imagen siguiente"
+        >→</button>
+        <span
+          id="modal-gallery-counter"
+          class="absolute bottom-2 right-2 rounded-full bg-slate-900/70 text-white text-[10px] font-bold px-2 py-1"
+        >1 / 1</span>
+      </div>
 
       <div class="p-6 flex flex-col justify-between">
         <div>
