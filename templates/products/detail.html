@@ -5,10 +5,10 @@
 {% block content %}
 <main class="container" style="padding-top:130px;padding-bottom:90px;">
   <div class="eyebrow"><span class="eyebrow-mark"></span> {{ product.category.name|upper }} / STRONG</div>
-  <h2 class="text-3xl font-black text-slate-900 mt-2">{{ product.name }}</h2>
+  <h2 class="text-3xl font-black text-slate-200 mt-2">{{ product.name }}</h2>
 
   <div class="grid md:grid-cols-2 gap-10 mt-8">
-    <section class="rounded-2xl border border-slate-200 bg-white p-4">
+    <section class="gallery-stage rounded-2xl border p-4">
       <div
         id="detail-gallery"
         class="relative flex gap-3 overflow-x-auto snap-x scroll-smooth"
@@ -20,7 +20,7 @@
           {% elif product.image %}
           <img src="{{ product.image.url }}" alt="{{ product.name }}" class="max-h-[420px] object-contain">
           {% else %}
-          <span class="text-8xl font-black italic text-slate-900">S</span>
+          <span class="text-8xl font-black italic text-slate-200">S</span>
           {% endif %}
         </div>
         {% for image in gallery %}
@@ -39,13 +39,13 @@
         <button
           type="button"
           id="gallery-prev"
-          class="text-xs font-bold text-slate-700 border border-slate-300 rounded-lg px-3 py-1.5 hover:bg-slate-50"
+          class="gallery-nav text-xs font-bold rounded-lg px-3 py-1.5"
         >← Anterior</button>
-        <span id="gallery-counter" class="text-xs font-bold text-slate-500">1 / {{ gallery|length|add:1 }}</span>
+        <span id="gallery-counter" class="gallery-counter text-xs font-bold">1 / {{ gallery|length|add:1 }}</span>
         <button
           type="button"
           id="gallery-next"
-          class="text-xs font-bold text-slate-700 border border-slate-300 rounded-lg px-3 py-1.5 hover:bg-slate-50"
+          class="gallery-nav text-xs font-bold rounded-lg px-3 py-1.5"
         >Siguiente →</button>
       </div>
       {% endif %}

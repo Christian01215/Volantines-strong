@@ -513,7 +513,7 @@ body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-ser
 }
 
 .product-modal-card .text-slate-900 {
-    color: #ffffff !important;
+    color: #e2e8f0 !important;
 }
 
 .product-modal-card .text-slate-600 {
@@ -676,6 +676,48 @@ body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-ser
 #float-wa:hover {
     background: #1da851;
     transform: scale(1.08);
+}
+
+/* ==========================================
+   GALERÍAS DE PRODUCTO - FONDO OSCURO
+   Aplica al modal del catálogo y a la ficha completa.
+   Las imágenes conservan object-contain: no se recortan.
+   ========================================== */
+
+.gallery-stage {
+    background: linear-gradient(145deg, #141414, #0d0d0d) !important;
+    border-color: rgba(255, 255, 255, 0.10) !important;
+}
+
+.gallery-stage .modal-slide img,
+.gallery-stage .detail-slide img {
+    object-fit: contain !important;
+    filter: drop-shadow(0 18px 26px rgba(0, 0, 0, 0.45));
+}
+
+.gallery-stage .modal-slide,
+.gallery-stage .detail-slide {
+    color: #e2e8f0;
+}
+
+.gallery-nav {
+    background: rgba(10, 10, 10, 0.85) !important;
+    color: #e2e8f0 !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.gallery-nav:hover {
+    background: var(--red) !important;
+    color: #ffffff !important;
+    border-color: var(--red) !important;
+}
+
+.gallery-counter {
+    background: rgba(8, 8, 8, 0.78) !important;
+    color: #e2e8f0 !important;
+    border: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 @media (max-width: 640px) {

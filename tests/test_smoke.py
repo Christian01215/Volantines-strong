@@ -31,6 +31,7 @@ class PublicUrlsSmokeTests(TestCase):
         response = self.client.get(reverse("products:detail", args=[self.product.slug]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Volantín prueba")
+        self.assertContains(response, "gallery-stage")
 
     def test_catalog_card_exposes_gallery_for_modal(self):
         ProductImage.objects.create(
@@ -42,6 +43,7 @@ class PublicUrlsSmokeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "data-gallery=")
         self.assertContains(response, "gallery-1.jpg")
+        self.assertContains(response, "gallery-stage")
 
     def test_cart_pages(self):
         self.assertEqual(self.client.get(reverse("cart:view")).status_code, 200)
