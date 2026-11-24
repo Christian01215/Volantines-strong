@@ -26,6 +26,9 @@ class PublicUrlsSmokeTests(TestCase):
         response = self.client.get(reverse("products:catalog"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Volantín prueba")
+        self.assertContains(
+            response, 'rel="icon" type="image/png" href="/static/favicon.png"'
+        )
 
     def test_product_detail(self):
         response = self.client.get(reverse("products:detail", args=[self.product.slug]))

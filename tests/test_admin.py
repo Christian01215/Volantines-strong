@@ -56,6 +56,9 @@ class AdminPanelTests(TestCase):
         response = self.client.get(reverse("admin_panel:dashboard"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "VOLANTINES STRONG")
+        self.assertContains(
+            response, 'rel="icon" type="image/png" href="/static/favicon.png"'
+        )
 
     def test_repeated_product_name_creates_unique_slugs(self):
         data = {
