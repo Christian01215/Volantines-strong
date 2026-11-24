@@ -520,6 +520,18 @@ body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-ser
     color: #cbd5e1 !important;
 }
 
+/* Cantidad del modal: número oscuro sobre fondo blanco */
+.product-modal-card label[for="modal-qty"] {
+    color: #334155 !important;
+}
+
+.product-modal-card #modal-qty {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    caret-color: #0f172a;
+    color-scheme: light;
+}
+
 /* Botón principal */
 #modal-add-btn {
     background: #ef2f24 !important;
