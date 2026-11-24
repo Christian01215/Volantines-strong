@@ -115,7 +115,10 @@
             '<div class="flex items-center gap-2 mt-1">' +
               '<button type="button" data-cart-action="minus" data-product-id="' + item.id +
                 '" class="w-6 h-6 rounded border border-slate-300 text-slate-700 text-xs">−</button>' +
-              '<span class="text-xs font-bold text-slate-900">' + item.quantity + '</span>' +
+              '<input type="number" min="1" max="' + item.stock + '" value="' + item.quantity +
+                '" data-cart-quantity data-product-id="' + item.id +
+                '" aria-label="Cantidad de ' + item.name +
+                '" class="w-14 px-1 py-0.5 border border-slate-300 rounded text-xs font-bold text-slate-900">' +
               '<button type="button" data-cart-action="plus" data-product-id="' + item.id +
                 '" class="w-6 h-6 rounded border border-slate-300 text-slate-700 text-xs">+</button>' +
               '<button type="button" data-cart-action="remove" data-product-id="' + item.id +
@@ -164,11 +167,13 @@
   }
 
   window.StrongCart = {
-    add: function (product, design) {
+    add: function (product, design, quantity) {
       if (!product || Number(product.stock) <= 0) return Promise.resolve(null);
+      var parsed = parseInt(quantity, 10);
+      if (isNaN(parsed) || parsed < 1) parsed = 1;
       return post(URLS.add, {
         product_id: product.id,
-        quantity: 1,
+        quantity: parsed,
         design_url: (design && design.url) || '',
         design_name: (design && design.name) || ''
       }).then(function (payload) {
@@ -210,6 +215,18 @@
           .then(apply)
           .catch(function (error) { window.alert(error.message); refresh(); });
       }
+    });
+    container.addEventListener('change', function (event) {
+      var input = event.target.closest('[data-cart-quantity]');
+      if (!input) return;
+      var quantity = parseInt(input.value, 10);
+      if (isNaN(quantity) || quantity < 1) quantity = 1;
+      post(URLS.update, {
+        product_id: input.dataset.productId,
+        quantity: quantity
+      })
+        .then(apply)
+        .catch(function (error) { window.alert(error.message); refresh(); });
     });
   }
 
@@ -272,7 +289,7 @@
       } finally {
         if (submitBtn) {
           submitBtn.disabled = false;
-          submitBtn.textContent = 'Registrar pedido (pago pendiente)';
+          submitBtn.textContent = 'Registrar pedido';
         }
       }
     });

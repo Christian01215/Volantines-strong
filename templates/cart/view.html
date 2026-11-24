@@ -32,7 +32,19 @@
         <button class="w-7 h-7 rounded border border-slate-300" type="submit">+</button>
       </form>
 
-      <span class="font-bold text-slate-900">{{ item.quantity }}</span>
+      <form method="post" action="{% url 'cart:set_quantity' item.product.id %}" class="flex items-center gap-1">
+        {% csrf_token %}
+        <input
+          class="w-14 px-2 py-1 rounded border border-slate-300 text-sm font-bold text-slate-900"
+          type="number"
+          name="quantity"
+          min="1"
+          max="{{ item.product.stock }}"
+          value="{{ item.quantity }}"
+          required
+        >
+        <button class="text-xs text-sky-700 hover:underline" type="submit">Actualizar</button>
+      </form>
 
       <form method="post" action="{% url 'cart:add' item.product.id %}">
         {% csrf_token %}

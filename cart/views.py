@@ -54,6 +54,17 @@ def add_to_cart(request, product_id):
     return redirect("cart:view")
 
 
+@require_POST
+def set_cart_quantity(request, product_id):
+    cart = get_or_create_cart(request)
+    _, error = set_quantity(cart, product_id, request.POST.get("quantity"))
+    if error:
+        messages.error(request, error)
+    else:
+        messages.success(request, "Cantidad actualizada en el carrito.")
+    return redirect("cart:view")
+
+
 def remove_from_cart(request, product_id):
     cart = get_or_create_cart(request)
     remove_product(cart, product_id)

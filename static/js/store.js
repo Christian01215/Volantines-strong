@@ -160,6 +160,11 @@
         ? 'STOCK DISPONIBLE: ' + product.stock
         : 'SIN STOCK';
     }
+    var qty = NS.byId('modal-qty');
+    if (qty) {
+      qty.max = String(Math.max(1, Number(product.stock) || 1));
+      qty.value = '1';
+    }
     if (desc) desc.textContent = product.specs || 'Sin ficha técnica cargada.';
     if (specs) specs.textContent = product.description || 'Sin descripción cargada.';
     if (wa) {
@@ -226,7 +231,8 @@
   if (modalAdd) {
     modalAdd.addEventListener('click', function () {
       if (currentProduct && window.StrongCart) {
-        window.StrongCart.add(currentProduct);
+        var qtyInput = NS.byId('modal-qty');
+        window.StrongCart.add(currentProduct, null, qtyInput ? qtyInput.value : 1);
         closeModal();
       }
     });

@@ -73,7 +73,18 @@
         {% endif %}
       </div>
 
-      <div class="flex flex-wrap gap-3">
+      <div class="flex flex-wrap gap-3 items-center">
+        <div class="flex items-center gap-2">
+          <label class="text-xs font-bold text-slate-700" for="detail-qty">Cantidad</label>
+          <input
+            id="detail-qty"
+            type="number"
+            min="1"
+            max="{{ product.stock|default:1 }}"
+            value="1"
+            class="w-20 px-2 py-2 rounded-lg border border-slate-300 text-sm"
+          >
+        </div>
         <button
           type="button"
           id="detail-add-btn"
@@ -167,7 +178,10 @@
   var addBtn = document.getElementById('detail-add-btn');
   if (addBtn) {
     addBtn.addEventListener('click', function () {
-      if (window.StrongCart) window.StrongCart.add(product);
+      if (window.StrongCart) {
+        var qtyInput = document.getElementById('detail-qty');
+        window.StrongCart.add(product, null, qtyInput ? qtyInput.value : 1);
+      }
     });
   }
 

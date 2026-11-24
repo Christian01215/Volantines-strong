@@ -5,6 +5,7 @@ app_name = "cart"
 urlpatterns = [
     path("carrito/", views.view_cart, name="view"),
     path("agregar/<int:product_id>/", views.add_to_cart, name="add"),
+    path("actualizar/<int:product_id>/", views.set_cart_quantity, name="set_quantity"),
     path("quitar/<int:product_id>/", views.remove_from_cart, name="remove"),
     path("checkout/", views.checkout, name="checkout"),
     # API JSON consumida por el drawer

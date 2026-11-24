@@ -60,11 +60,15 @@ def add_product(cart, product, quantity=1, design_url="", design_name=""):
         quantity = int(quantity)
     except (TypeError, ValueError):
         quantity = 1
-    quantity = max(1, min(quantity, product.stock))
+    quantity = max(1, quantity)
 
     item = cart.items.filter(product=product).first()
+    requested = quantity + (item.quantity if item else 0)
+    if requested > product.stock:
+        return None, f"Solo quedan {product.stock} unidades de {product.name}"
+
     if item:
-        item.quantity = min(item.quantity + quantity, product.stock)
+        item.quantity = requested
         if design_url:
             item.design_url = design_url
             item.design_name = design_name
