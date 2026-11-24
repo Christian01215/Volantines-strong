@@ -1,8 +1,10 @@
 """Validaciones compartidas de datos del comprador y archivos subidos."""
 import re
+from datetime import date
 
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
+from django.utils import timezone
 
 MAX_RECEIPT_SIZE = 5 * 1024 * 1024  # 5 MB
 MAX_DESIGN_SIZE = 3 * 1024 * 1024  # 3 MB
@@ -16,6 +18,13 @@ RECEIPT_TYPES = {
 }
 DESIGN_TYPES = {"image/jpeg", "image/png", "image/webp"}
 IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+
+PICKUP_SLOTS = (
+    "10:00 - 12:00",
+    "12:00 - 14:00",
+    "15:00 - 17:00",
+    "17:00 - 19:00",
+)
 
 
 def validate_upload(upload, allowed_types, max_size, label):
@@ -42,8 +51,31 @@ def validate_rut(value):
         multiplier = multiplier + 1 if multiplier < 7 else 2
 
     remainder = total % 11
-    expected = "0" if remainder == 0 else "K" if remainder == 10 else str(11 - remainder)
+    expected = "0" if remainder == 0 else "K" if remainder == 1 else str(11 - remainder)
     return expected == verifier
+
+
+def validate_pickup_data(data):
+    """Devuelve errores si falta o es inválida la fecha/bloque de retiro."""
+    errors = []
+    raw_date = (data.get("pickup_date") or "").strip()
+    if not raw_date:
+        errors.append("Debe elegir una fecha de retiro.")
+    else:
+        try:
+            pickup_date = date.fromisoformat(raw_date)
+        except ValueError:
+            errors.append("La fecha de retiro no es válida.")
+        else:
+            if pickup_date < timezone.localdate():
+                errors.append("La fecha de retiro no puede ser anterior a hoy.")
+
+    slot = (data.get("pickup_slot") or "").strip()
+    if not slot:
+        errors.append("Debe elegir un bloque horario de retiro.")
+    elif slot not in PICKUP_SLOTS:
+        errors.append("El bloque horario de retiro no es válido.")
+    return errors
 
 
 def validate_customer_data(data):

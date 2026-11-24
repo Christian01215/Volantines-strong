@@ -1,8 +1,11 @@
 """Flujo completo de compra: carrito en BD, orden, stock y correo al dueño."""
+from datetime import timedelta
+
 from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from cart.models import CartItem
 from cart.services import get_or_create_cart
@@ -41,12 +44,19 @@ class CheckoutFlowTests(TestCase):
             "customer_rut": "12.345.678-5",
             "customer_phone": "+56 9 1234 5678",
             "customer_email": "ana@example.com",
-            "pickup_date": "2026-12-01",
+            "pickup_date": (timezone.localdate() + timedelta(days=7)).isoformat(),
             "pickup_slot": "10:00 - 12:00",
             "receipt": SimpleUploadedFile(
                 "comprobante.png", b"contenido-falso", content_type="image/png"
             ),
         }
+
+    def _post_checkout(self, payload):
+        return self.client.post(
+            reverse("orders:checkout"),
+            payload,
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
 
     def test_checkout_creates_order_discounts_stock_and_empties_cart(self):
         mail.outbox = []
@@ -82,6 +92,69 @@ class CheckoutFlowTests(TestCase):
         self.assertEqual(len(mail.outbox[0].attachments), 1)
         self.assertEqual(mail.outbox[1].to, ["ana@example.com"])
         self.assertIn(order.code, mail.outbox[1].subject)
+
+    def test_checkout_accepts_ruts_ending_in_one_and_k(self):
+        for rut in ("12.345.604-1", "12.345.605-K"):
+            with self.subTest(rut=rut):
+                self._fill_cart(1)
+                payload = self._checkout_payload()
+                payload["customer_rut"] = rut
+
+                response = self._post_checkout(payload)
+
+                self.assertEqual(response.status_code, 200)
+                self.assertTrue(response.json()["ok"])
+                self.assertTrue(Order.objects.filter(customer_rut=rut).exists())
+
+    def test_checkout_requires_pickup_date_and_slot(self):
+        self._fill_cart(1)
+        payload = self._checkout_payload()
+        payload.pop("pickup_date")
+        payload.pop("pickup_slot")
+
+        response = self._post_checkout(payload)
+
+        self.assertEqual(response.status_code, 400)
+        message = response.json()["message"]
+        self.assertFalse(response.json()["ok"])
+        self.assertIn("fecha de retiro", message)
+        self.assertIn("bloque horario de retiro", message)
+        self.assertEqual(Order.objects.count(), 0)
+
+    def test_checkout_rejects_empty_pickup_slot(self):
+        self._fill_cart(1)
+        payload = self._checkout_payload()
+        payload["pickup_slot"] = ""
+
+        response = self._post_checkout(payload)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("bloque horario de retiro", response.json()["message"])
+        self.assertEqual(Order.objects.count(), 0)
+
+    def test_checkout_rejects_past_pickup_date(self):
+        self._fill_cart(1)
+        payload = self._checkout_payload()
+        payload["pickup_date"] = (
+            timezone.localdate() - timedelta(days=1)
+        ).isoformat()
+
+        response = self._post_checkout(payload)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("anterior a hoy", response.json()["message"])
+        self.assertEqual(Order.objects.count(), 0)
+
+    def test_checkout_rejects_unknown_pickup_slot(self):
+        self._fill_cart(1)
+        payload = self._checkout_payload()
+        payload["pickup_slot"] = "23:00 - 00:00"
+
+        response = self._post_checkout(payload)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("bloque horario de retiro no es válido", response.json()["message"])
+        self.assertEqual(Order.objects.count(), 0)
 
     def test_customer_confirmation_can_be_disabled(self):
         mail.outbox = []

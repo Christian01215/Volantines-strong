@@ -16,6 +16,7 @@ from config.validators import (
     MAX_RECEIPT_SIZE,
     RECEIPT_TYPES,
     validate_customer_data,
+    validate_pickup_data,
     validate_upload,
 )
 from django.utils import timezone
@@ -128,14 +129,24 @@ def checkout_submit(request):
     if request.method != "POST":
         return JsonResponse({"ok": False, "message": "Método no permitido"}, status=405)
 
-    required = ["customer_name", "customer_rut", "customer_phone", "customer_email"]
-    missing = [field for field in required if not request.POST.get(field, "").strip()]
+    required = [
+        ("customer_name", "nombre"),
+        ("customer_rut", "RUT"),
+        ("customer_phone", "teléfono"),
+        ("customer_email", "correo"),
+        ("pickup_date", "fecha de retiro"),
+        ("pickup_slot", "bloque horario de retiro"),
+    ]
+    missing = [
+        label for field, label in required if not request.POST.get(field, "").strip()
+    ]
     if not request.FILES.get("receipt"):
-        missing.append("receipt")
+        missing.append("comprobante")
     if missing:
         return _error(request, "Faltan datos obligatorios: " + ", ".join(missing))
 
     errors = validate_customer_data(request.POST)
+    errors.extend(validate_pickup_data(request.POST))
     errors.append(
         validate_upload(request.FILES["receipt"], RECEIPT_TYPES, MAX_RECEIPT_SIZE, "el comprobante")
         or ""
