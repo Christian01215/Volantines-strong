@@ -8,13 +8,46 @@
   <h2 class="text-3xl font-black text-slate-900 mt-2">{{ product.name }}</h2>
 
   <div class="grid md:grid-cols-2 gap-10 mt-8">
-    <section class="rounded-2xl border border-slate-200 bg-white p-6 grid place-items-center min-h-[360px]">
-      {% if product.image_url %}
-      <img src="{{ product.image_url }}" alt="{{ product.name }}" class="max-h-[420px] object-contain">
-      {% elif product.image %}
-      <img src="{{ product.image.url }}" alt="{{ product.name }}" class="max-h-[420px] object-contain">
-      {% else %}
-      <span class="text-8xl font-black italic text-slate-900">S</span>
+    <section class="rounded-2xl border border-slate-200 bg-white p-4">
+      <div
+        id="detail-gallery"
+        class="relative flex gap-3 overflow-x-auto snap-x scroll-smooth"
+        style="scrollbar-width:none;"
+      >
+        <div class="detail-slide snap-center shrink-0 w-full grid place-items-center min-h-[360px]">
+          {% if product.image_url %}
+          <img src="{{ product.image_url }}" alt="{{ product.name }}" class="max-h-[420px] object-contain">
+          {% elif product.image %}
+          <img src="{{ product.image.url }}" alt="{{ product.name }}" class="max-h-[420px] object-contain">
+          {% else %}
+          <span class="text-8xl font-black italic text-slate-900">S</span>
+          {% endif %}
+        </div>
+        {% for image in gallery %}
+        <div class="detail-slide snap-center shrink-0 w-full grid place-items-center min-h-[360px]">
+          {% if image.image_url %}
+          <img src="{{ image.image_url }}" alt="{{ product.name }} {{ forloop.counter }}" class="max-h-[420px] object-contain">
+          {% elif image.image %}
+          <img src="{{ image.image.url }}" alt="{{ product.name }} {{ forloop.counter }}" class="max-h-[420px] object-contain">
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+
+      {% if gallery %}
+      <div class="flex items-center justify-between mt-3 px-1">
+        <button
+          type="button"
+          id="gallery-prev"
+          class="text-xs font-bold text-slate-700 border border-slate-300 rounded-lg px-3 py-1.5 hover:bg-slate-50"
+        >← Anterior</button>
+        <span id="gallery-counter" class="text-xs font-bold text-slate-500">1 / {{ gallery|length|add:1 }}</span>
+        <button
+          type="button"
+          id="gallery-next"
+          class="text-xs font-bold text-slate-700 border border-slate-300 rounded-lg px-3 py-1.5 hover:bg-slate-50"
+        >Siguiente →</button>
+      </div>
       {% endif %}
     </section>
 
@@ -106,6 +139,30 @@
     image: value('d-image'),
     stock: value('d-stock')
   };
+
+  var track = document.getElementById('detail-gallery');
+  var slides = track
+    ? Array.prototype.slice.call(track.querySelectorAll('.detail-slide'))
+    : [];
+  var slideIndex = 0;
+
+  function goToSlide(next) {
+    if (!track || !slides.length) return;
+    slideIndex = Math.max(0, Math.min(slides.length - 1, next));
+    var slide = slides[slideIndex];
+    track.scrollTo({
+      left: slide.offsetLeft - track.offsetLeft,
+      behavior: 'smooth'
+    });
+    var counter = document.getElementById('gallery-counter');
+    if (counter) counter.textContent = (slideIndex + 1) + ' / ' + slides.length;
+  }
+
+  var prevBtn = document.getElementById('gallery-prev');
+  if (prevBtn) prevBtn.addEventListener('click', function () { goToSlide(slideIndex - 1); });
+
+  var nextBtn = document.getElementById('gallery-next');
+  if (nextBtn) nextBtn.addEventListener('click', function () { goToSlide(slideIndex + 1); });
 
   var addBtn = document.getElementById('detail-add-btn');
   if (addBtn) {

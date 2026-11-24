@@ -27,8 +27,9 @@ def catalog(request):
 
 def product_detail(request, slug):
     product = get_object_or_404(Product, slug=slug, is_active=True)
+    gallery = product.gallery.all()
     related = Product.objects.filter(category=product.category, is_active=True).exclude(pk=product.pk)[:4]
-    return render(request, "products/detail.html", {"product": product, "related": related})
+    return render(request, "products/detail.html", {"product": product, "gallery": gallery, "related": related})
 
 
 def customize(request, slug):

@@ -93,7 +93,7 @@ class AdminPanelTests(TestCase):
         order.refresh_from_db()
         self.assertEqual(order.status, "pago_confirmado")
 
-    def test_ready_for_pickup_sends_customer_notification_once(self):
+    def test_ready_for_pickup_does_not_send_automatic_email(self):
         order = Order.objects.create(
             code="VC55555555",
             customer_name="Cliente Aviso",
@@ -104,36 +104,32 @@ class AdminPanelTests(TestCase):
         )
         url = reverse("admin_panel:order_status_update", args=[order.code])
 
-        self.client.post(url, {"status": "listo_para_retiro"})
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].to, ["cliente@example.com"])
-        self.assertIn(order.code, mail.outbox[0].subject)
+        response = self.client.post(url, {"status": "listo_para_retiro"})
+        self.assertTrue(response.json()["ok"])
+        self.assertFalse(response.json()["notified"])
+        order.refresh_from_db()
+        self.assertEqual(order.status, "listo_para_retiro")
+        self.assertEqual(len(mail.outbox), 0)
 
+        # Repetir el estado tampoco genera correo.
         self.client.post(url, {"status": "listo_para_retiro"})
-        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(len(mail.outbox), 0)
 
-    def test_status_changes_notify_each_transition_once(self):
+    def test_manual_customer_notification_still_works(self):
         order = Order.objects.create(
             code="VC66666666",
             customer_name="Cliente Estados",
             customer_email="estados@example.com",
             total=15000,
+            status="listo_para_retiro",
         )
-        url = reverse("admin_panel:order_status_update", args=[order.code])
+        url = reverse("admin_panel:order_notify", args=[order.code])
 
-        for status in ["pago_confirmado", "preparando", "listo_para_retiro"]:
-            response = self.client.post(url, {"status": status})
-            self.assertTrue(response.json()["ok"])
-
-        self.assertEqual(len(mail.outbox), 3)
-        subjects = " ".join(message.subject for message in mail.outbox)
-        self.assertIn("Pago confirmado", subjects)
-        self.assertIn("preparando", subjects.lower())
-        self.assertIn("listo", subjects.lower())
-
-        # Repetir el mismo estado no genera otro correo.
-        self.client.post(url, {"status": "listo_para_retiro"})
-        self.assertEqual(len(mail.outbox), 3)
+        response = self.client.post(url)
+        self.assertTrue(response.json()["ok"])
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["estados@example.com"])
+        self.assertIn(order.code, mail.outbox[0].subject)
 
     def test_product_delete_is_soft_and_can_be_restored(self):
         product = Product.objects.create(

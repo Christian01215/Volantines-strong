@@ -145,6 +145,7 @@
             data-price-label="{{ product.price_display }}"
             data-image="{% if product.image_url %}{{ product.image_url }}{% elif product.image %}{{ product.image.url }}{% endif %}"
             data-specs="{{ product.specs }}"
+            data-description="{{ product.description }}"
             data-stock="{{ product.stock }}"
             data-slug="{{ product.slug }}"
           >

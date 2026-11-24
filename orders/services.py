@@ -186,8 +186,12 @@ def send_customer_status_notification(order):
     return notify_customer(order, order.status, force=True)[0]
 
 
-def update_order_status(order, new_status, notify=True):
-    """Cambia el estado de forma centralizada y evita avisos duplicados."""
+def update_order_status(order, new_status, notify=False):
+    """Cambia el estado de forma centralizada.
+
+    Por defecto NO envía correos automáticos al cliente. El panel conserva el
+    botón manual "Notificar al cliente" para enviar el aviso cuando se quiera.
+    """
     if new_status not in dict(Order.STATUS_CHOICES):
         raise ValueError("Estado inválido")
 

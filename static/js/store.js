@@ -24,6 +24,7 @@
       priceLabel: data.priceLabel || NS.formatCLP(data.price),
       image: data.image || '',
       specs: data.specs || '',
+      description: data.description || '',
       stock: Number(data.stock) || 0,
       slug: data.slug || ''
     };
@@ -85,8 +86,8 @@
         ? 'STOCK DISPONIBLE: ' + product.stock
         : 'SIN STOCK';
     }
-    if (desc) desc.textContent = product.specs;
-    if (specs) specs.textContent = product.specs || '—';
+    if (desc) desc.textContent = product.specs || 'Sin ficha técnica cargada.';
+    if (specs) specs.textContent = product.description || 'Sin descripción cargada.';
     if (wa) {
       var waBase = window.STRONG_WHATSAPP_URL;
       if (waBase && waBase !== '#') {

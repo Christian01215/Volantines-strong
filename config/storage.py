@@ -6,7 +6,6 @@ permite un fallback local controlado.
 """
 import io
 import logging
-import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -44,34 +43,22 @@ class UploadResult:
 
 
 def _cloudinary_configured():
-    if os.environ.get("CLOUDINARY_URL"):
-        return True
-    cloud_name = getattr(settings, "CLOUDINARY_CLOUD_NAME", "") or os.environ.get(
-        "CLOUDINARY_CLOUD_NAME", ""
-    )
-    api_key = getattr(settings, "CLOUDINARY_API_KEY", "") or os.environ.get(
-        "CLOUDINARY_API_KEY", ""
-    )
-    api_secret = getattr(settings, "CLOUDINARY_API_SECRET", "") or os.environ.get(
-        "CLOUDINARY_API_SECRET", ""
-    )
-    return bool(cloud_name and api_key and api_secret)
+    cloud_name = getattr(settings, "CLOUDINARY_CLOUD_NAME", "")
+    api_key = getattr(settings, "CLOUDINARY_API_KEY", "")
+    api_secret = getattr(settings, "CLOUDINARY_API_SECRET", "")
+    cloudinary_url = getattr(settings, "CLOUDINARY_URL", "")
+    return bool(cloudinary_url or (cloud_name and api_key and api_secret))
 
 
 def _configure_cloudinary():
-    cloudinary_url = os.environ.get("CLOUDINARY_URL") or getattr(
-        settings, "CLOUDINARY_URL", ""
-    )
+    cloudinary_url = getattr(settings, "CLOUDINARY_URL", "")
     if cloudinary_url:
         cloudinary.config(cloudinary_url=cloudinary_url, secure=True)
         return
     cloudinary.config(
-        cloud_name=getattr(settings, "CLOUDINARY_CLOUD_NAME", "")
-        or os.environ.get("CLOUDINARY_CLOUD_NAME", ""),
-        api_key=getattr(settings, "CLOUDINARY_API_KEY", "")
-        or os.environ.get("CLOUDINARY_API_KEY", ""),
-        api_secret=getattr(settings, "CLOUDINARY_API_SECRET", "")
-        or os.environ.get("CLOUDINARY_API_SECRET", ""),
+        cloud_name=getattr(settings, "CLOUDINARY_CLOUD_NAME", ""),
+        api_key=getattr(settings, "CLOUDINARY_API_KEY", ""),
+        api_secret=getattr(settings, "CLOUDINARY_API_SECRET", ""),
         secure=True,
     )
 
